@@ -1,0 +1,25 @@
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Dependencies
+node_modules/
+
+# Build / cache
+dist/
+.cache/
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+
+# ClickUp / secrets — never commit API tokens
+**/secrets.json
