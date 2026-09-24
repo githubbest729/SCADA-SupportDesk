@@ -298,7 +298,7 @@ window.AgacSync = {
 
     try {
       // TODO: Replace with your actual Google Apps Script Web App URL from Step 2
-      const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxoeXrCbeCcHCrW4pFJqH2EQRJx60WwVXJm0q_muXpmZ-vbEf5nlFM7iaOzHBgcXKvy/exec";
+      const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw-nlqGy2pMXqyrhJg3OZjS3D0oAfeaKbj8OwX0LA9_lHvWUWNVJjrNrGthfP-P5jsuJQ/exec";
 
       await fetch(WEB_APP_URL, {
         method: "POST",
