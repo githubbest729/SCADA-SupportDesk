@@ -29,6 +29,47 @@ export const SLAEngine = {
     return ticket;
   },
 
+   import { SEVERITY_MATRIX } from './db-schema-v2.js';
+
+export const SLAEngine = {
+  initializeTicketSLA(ticket) {
+    const policy = SEVERITY_MATRIX.find(p => p.severity === ticket.severity) || SEVERITY_MATRIX[2];
+    const now = Date.now();
+    
+    ticket.sla = {
+      policyId: ticket.severity.toString(),
+      responseDeadline: now + (policy.responseTargetMins * 60000),
+      resolveDeadline: now + (policy.resolveTargetMins * 60000),
+      respondedAt: null,
+      mttd: { startedAt: now, detectedAt: null },
+      mttr: { startedAt: null, resolvedAt: null },
+      pauseLog: [],
+      totalPausedMs: 0,
+      breached: { response: false, resolution: false },
+      escalationLevel: 0
+    };
+    return ticket;
+  },
+
+  pauseSLA(ticket, reason) {
+    const now = Date.now();
+    ticket.sla.pauseLog.push({ pausedAt: now, resumedAt: null, reason });
+  },
+
+  resumeSLA(ticket) {
+    const lastPause = ticket.sla.pauseLog[ticket.sla.pauseLog.length - 1];
+    if (lastPause && !lastPause.resumedAt) {
+      const now = Date.now();
+      lastPause.resumedAt = now;
+      const pauseDuration = now - lastPause.pausedAt;
+      
+      ticket.sla.totalPausedMs += pauseDuration;
+      ticket.sla.responseDeadline += pauseDuration;
+      ticket.sla.resolveDeadline += pauseDuration;
+    }
+  }
+};
+
   /**
    * Triggers when status changes to 'Pending Info'. Pauses the SLA clock.
    */
