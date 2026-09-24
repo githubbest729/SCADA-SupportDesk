@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Offline — AGAC SupportDesk</title>
+<link rel="stylesheet" href="css/style.css" />
+<style>
+  .offline-wrap {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px 24px;
+  }
+  .offline-wrap svg { width: 64px; height: 64px; margin-bottom: 20px; }
+  .offline-wrap h1 { font-size: 20px; margin: 0 0 8px; }
+  .offline-wrap p { color: var(--text-dim); font-size: 14px; max-width: 320px; line-height: 1.6; margin: 0 0 24px; }
+</style>
+</head>
+<body>
+  <div class="offline-wrap">
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="4" y="4" width="40" height="40" rx="8" stroke="#3FA9F5" stroke-width="2.5"/>
+      <path d="M14 24h20M24 14v20" stroke="#8B97AF" stroke-width="2.5" stroke-linecap="round"/>
+      <circle cx="24" cy="24" r="3" fill="#F5573F"/>
+    </svg>
+    <h1>No connection</h1>
+    <p>This page isn't cached for offline use. Your ticket drafts and knowledge-base manuals are still available — go back to Log Issue to keep working.</p>
+    <button class="btn btn--primary" onclick="location.href='index.html'" style="max-width:220px;">Back to SupportDesk</button>
+  </div>
+</body>
+</html>

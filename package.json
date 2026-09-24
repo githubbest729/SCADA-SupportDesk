@@ -1,0 +1,13 @@
+{
+  "name": "agac-supportdesk",
+  "version": "1.0.0",
+  "description": "Offline-first SCADA incident ticketing PWA for AGAC plant-floor operators, syncing to ClickUp.",
+  "private": true,
+  "scripts": {
+    "dev": "http-server . -p 8080 -c-1",
+    "start": "npm run dev"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}
