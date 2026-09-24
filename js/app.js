@@ -5,7 +5,7 @@
 import { SLAEngine } from './sla-engine.js';
 import { TicketLifecycle } from './ticket-lifecycle.js';
 
-let APP_SETTINGS = { engineerName: "Christian Tosita Espinosa", role: "SCADA Engineer" };
+let APP_SETTINGS = { engineerName: "Christian Espinosa", role: "SCADA Engineer" };
 let currentTicket = null;
 
 // --- 1. Service Worker & Offline Sync ---
@@ -277,27 +277,37 @@ async function renderQueue() {
   }
 }
 
-// --- 8. Sync Button ---
+// --- 8. Google Sheets Cloud Sync Engine ---
 window.AgacSync = {
   async flushQueue() {
+    if (typeof OpsDB === 'undefined') {
+      alert("Database not initialized.");
+      return;
+    }
+
+    const tickets = await OpsDB.getAll("tickets");
+    const queued = (tickets || []).filter(t => t.syncStatus === 'queued');
+
+    if (queued.length === 0) {
+      alert("No tickets waiting to sync.");
+      renderQueue();
+      return;
+    }
+
+    alert(`Syncing ${queued.length} ticket(s) to your Google Sheet...`);
+
     try {
-      if (typeof OpsDB === 'undefined') {
-        toast("Database not initialized.");
-        return;
-      }
+      // TODO: Replace with your actual Google Apps Script Web App URL from Step 2
+      const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxoeXrCbeCcHCrW4pFJqH2EQRJx60WwVXJm0q_muXpmZ-vbEf5nlFM7iaOzHBgcXKvy/exec";
 
-      const tickets = await OpsDB.getAll("tickets");
-      const queued = (tickets || []).filter(t => t.syncStatus === 'queued');
+      await fetch(WEB_APP_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(queued)
+      });
 
-      if (queued.length === 0) {
-        toast("No tickets waiting to sync.");
-        renderQueue();
-        return;
-      }
-
-      toast(`Syncing ${queued.length} ticket(s) to AGAC Enterprise Server...`);
-      await new Promise(resolve => setTimeout(resolve, 1200));
-
+      // Mark local tickets as safely synced
       for (const ticket of queued) {
         ticket.syncStatus = 'synced';
         ticket.serverRev = (ticket.serverRev || 0) + 1;
@@ -305,11 +315,12 @@ window.AgacSync = {
         await OpsDB.put("tickets", ticket);
       }
 
-      toast("Sync successful! All items committed.");
+      alert("Sync successful! Tickets have been added to your Google Sheet.");
       renderQueue();
-    } catch (e) {
-      console.error("Flush queue error:", e);
-      toast("Sync failed.");
+
+    } catch (error) {
+      console.error("Google Sheets sync failed:", error);
+      alert("Sync failed. Check your internet connection.");
     }
   }
 };
