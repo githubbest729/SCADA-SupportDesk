@@ -12,8 +12,10 @@
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
 * { box-sizing: border-box; }
 html { height: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); }
+
 body {
   height: 100%;
   margin: 0;
@@ -36,6 +38,7 @@ body {
   background: var(--bg);
   z-index: 10;
 }
+
 .brand { font-size: 15px; letter-spacing: 0.2px; color: var(--text-dim); }
 .brand strong { color: var(--text); }
 
@@ -48,7 +51,9 @@ h1 { font-size: 22px; margin: 4px 0 6px; }
 .lede { color: var(--text-dim); font-size: 14px; line-height: 1.5; margin-bottom: 20px; }
 
 label { display: block; font-size: 13px; color: var(--text-dim); margin: 16px 0 6px; }
-select, textarea, input[type="file"] {
+
+/* Separated form controls to prevent nesting errors */
+textarea, input[type="file"] {
   width: 100%;
   background: var(--panel);
   border: 1px solid var(--border);
@@ -58,6 +63,32 @@ select, textarea, input[type="file"] {
   font-size: 15px;
   font-family: inherit;
 }
+
+/* Explicit styling for dropdowns so they never collapse */
+select {
+  width: 100%;
+  padding: 12px;
+  background-color: #161e2e;
+  color: #ffffff;
+  border: 1px solid #2b374d;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  appearance: auto;
+  cursor: pointer;
+  margin-bottom: 12px;
+}
+
+select:focus {
+  border-color: #3b82f6;
+}
+
+option {
+  background-color: #161e2e;
+  color: #ffffff;
+  padding: 8px;
+}
+
 textarea { resize: vertical; }
 
 .btn {
