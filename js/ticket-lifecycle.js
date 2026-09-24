@@ -33,7 +33,7 @@ export const TicketLifecycle = {
       ticket.resolution = {
         rootCause: rcaData.rootCause,
         correctiveAction: rcaData.correctiveAction,
-        linkedNode: rcaData.linkedNode, // e.g., 'TIA-Portal-PLC-14'
+        linkedNode: rcaData.linkedNode, 
         verifiedBy: null
       };
       ticket.sla.mttr.resolvedAt = Date.now();
@@ -59,63 +59,19 @@ export const TicketLifecycle = {
     ticket.status = newStatus;
     ticket.updatedAt = Date.now();
     
-    // Critical for offline sync conflict resolution (Pillar 3)
+    // Critical for offline sync conflict resolution
     ticket.localRev = (ticket.localRev || 0) + 1;
     ticket.syncStatus = 'queued';
 
     // 6. Save and Audit
-    await OpsDB.put("tickets", ticket);
-    await SLAEngine._logAudit(ticket.ticketId, userId, 'status_change', oldStatus, newStatus);
-    
-    return ticket;
-
-     import { SLAEngine } from './sla-engine.js';
-
-export const TicketLifecycle = {
-  allowedTransitions: {
-    'Open': ['Assigned', 'Closed'],
-    'Assigned': ['In Progress', 'Open'],
-    'In Progress': ['Pending Info', 'Resolved'],
-    'Pending Info': ['In Progress', 'Resolved'],
-    'Resolved': ['In Progress', 'Closed'],
-    'Closed': []
-  },
-
-  async transitionStatus(ticket, newStatus, userId, rcaData = null) {
-    if (!this.allowedTransitions[ticket.status].includes(newStatus)) {
-      throw new Error(`Invalid state transition from ${ticket.status} to ${newStatus}`);
-    }
-
-    if (newStatus === 'Resolved') {
-      if (!rcaData || !rcaData.rootCause || !rcaData.correctiveAction || !rcaData.linkedNode) {
-        throw new Error("RCA data and a Linked SCADA Node are mandatory to resolve a ticket.");
-      }
-      ticket.resolution = {
-        rootCause: rcaData.rootCause,
-        correctiveAction: rcaData.correctiveAction,
-        linkedNode: rcaData.linkedNode,
-        verifiedBy: null
-      };
-      ticket.sla.mttr.resolvedAt = Date.now();
-    }
-
-    if (newStatus === 'Pending Info' && ticket.status !== 'Pending Info') {
-      SLAEngine.pauseSLA(ticket, 'Awaiting operator feedback.');
-    } else if (ticket.status === 'Pending Info' && newStatus !== 'Pending Info') {
-      SLAEngine.resumeSLA(ticket);
-    }
-
-    ticket.status = newStatus;
-    ticket.updatedAt = Date.now();
-    ticket.localRev = (ticket.localRev || 0) + 1;
-    ticket.syncStatus = 'queued';
-
     if (typeof OpsDB !== 'undefined') {
       await OpsDB.put("tickets", ticket);
     }
     
+    if (SLAEngine._logAudit) {
+      await SLAEngine._logAudit(ticket.ticketId, userId, 'status_change', oldStatus, newStatus);
+    }
+    
     return ticket;
-  }
-};
   }
 };
