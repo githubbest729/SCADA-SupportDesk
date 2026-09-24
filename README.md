@@ -1,85 +1,137 @@
-# AGAC SCADA SupportDesk
+# 🏭 AGAC Enterprise SCADA SupportDesk
 
-An offline-first Progressive Web App that lets plant-floor operators log SCADA incidents from substations with no network coverage, then automatically syncs those tickets to ClickUp the moment connectivity returns.
+An enterprise-grade, offline-first Progressive Web App (PWA) and backend ticketing ecosystem designed specifically for mission-critical plant floors. 
 
-## Architecture overview
+SupportDesk allows SCADA engineers and operators to log incidents, parse offline troubleshooting manuals, and track strict SLAs from remote substations with zero network coverage. It acts as a standalone, fully compliant Computerized Maintenance Management System (CMMS) featuring bidirectional sync, immutable audit trails, and automated SCADA telemetry ingestion.
 
-```
-index.html          Intake/triage UI, diagnostic assist, ticket queue view
-offline.html         Fallback page for uncached routes
-manifest.json        Standalone display + share_target for diagnostic photos
-sw.js                Service worker: caching, background sync, push notifications
-css/style.css        App styling
-js/db.js             IndexedDB schema and data access
-js/clickup-sync.js   ClickUp API sync (via backend proxy)
-js/app.js            App logic: form handling, KB lookups, queue rendering
-icons/               App icons (see "Icons & assets" below)
-```
+---
 
-## Offline-first ticketing
+## 🏗️ Enterprise System Architecture
 
-Every ticket an operator submits is written to IndexedDB (`ticket_drafts` store) before anything touches the network. The UI never blocks on connectivity — the "Save ticket" button succeeds instantly whether the device is online or not. Tickets sit in a `queued` state until they're successfully pushed to ClickUp, at which point they flip to `synced`.
+The ecosystem relies on an offline-first browser database (IndexedDB) interacting with a centralized Node.js/PostgreSQL backend via a strict conflict-resolution sync engine.
 
-### IndexedDB schema (`js/db.js`)
+```mermaid
+graph TD
+    subgraph Plant Floor [Plant Floor / Edge Devices]
+        UI[PWA Web UI / Tablet]
+        IDB[(IndexedDB v2)]
+        SW[Service Worker]
+        
+        UI <-->|Reads/Writes Offline| IDB
+        UI -->|Registers Sync| SW
+    end
 
-| Store | Key | Purpose |
-|---|---|---|
-| `ticket_drafts` | `localId` (auto) | Offline queue of operator-submitted incidents, indexed by `status` and `equipmentTagId` |
-| `equipment_tags` | `tagId` | Known PLC/HMI/RTU tags, indexed by `system` and `location` |
-| `knowledge_articles` | `articleId` | Cached troubleshooting content, indexed by `system` and `faultCode` |
+    subgraph Central Data Center [Enterprise Backend]
+        API[Sync Engine API]
+        Tele[SCADA Telemetry Webhook]
+        Push[Push Notification Service]
+    end
 
-## Caching strategy (`sw.js`)
+    subgraph Database [PostgreSQL Database]
+        PG[(Tickets, SLA, Audit Logs, RBAC)]
+    end
 
-- **App shell** (`index.html`, `offline.html`, CSS/JS, `manifest.json`) is precached on install for instant, fully-offline loads.
-- **Knowledge base manuals** (`/kb/*`) use **stale-while-revalidate**: a cached copy is served immediately, while a background fetch refreshes it for next time — critical during unplanned downtime when a fresh network round-trip can't be guaranteed.
-- **Navigation requests** that fail (no cache, no network) fall back to `offline.html`, which explains what's still usable (ticket drafts, cached manuals) rather than showing a browser error.
+    subgraph Industrial Control Systems
+        SCADA[Wonderware / GE iFIX Alarm DB]
+    end
 
-## ClickUp API synchronization
+    SW <-->|Bidirectional JSON Sync| API
+    API <-->|Read/Write| PG
+    SCADA -->|Fires Critical Alarms| Tele
+    Tele -->|Auto-Generates Tickets| PG
+    API -->|Triggers Alert| Push
+    Push -.->|Notifies| UI
 
-`js/clickup-sync.js` maps each queued ticket to a ClickUp task:
+    classDef primary fill:#ff7a18,stroke:#a85512,stroke-width:2px,color:#fff;
+    classDef secondary fill:#2a323c,stroke:#1e2731,stroke-width:2px,color:#fff;
+    classDef database fill:#131a22,stroke:#2dd4bf,stroke-width:2px,color:#fff;
+    
+    class UI,SW primary;
+    class API,Tele,Push secondary;
+    class PG,IDB database;
 
-1. On reconnect, the Service Worker's `sync` event (tag: `sync-ticket-queue`) fires.
-2. The page (or the SW itself, via `importScripts`, if no page is open) reads all `queued` tickets from IndexedDB.
-3. Each ticket is POSTed to a **backend proxy** at `/api/clickup/list/:listId/task` — never directly to `api.clickup.com` from the client, since a ClickUp API token must not ship inside PWA code.
-4. On success, the ticket is marked `synced` with its ClickUp task ID. On failure, it stays `queued` and retries on the next sync event.
-5. Engineering resolution notes are pushed back via `pushResolutionUpdate()`, appending timestamped comments to the ClickUp task to preserve an audit trail.
+⚙️ Core Enterprise Pillars
+Bidirectional Offline Sync: Employs a localRev vs. serverRev tracking system. Automatically resolves offline editing conflicts by routing contested tickets to a quarantine queue for dispatcher review.
 
-**You must implement the `/api/clickup/*` proxy** (a small serverless function or backend route) that holds the ClickUp API token server-side and forwards requests to `https://api.clickup.com/api/v2/`.
+Strict SLA Engine: Calculates millisecond-accurate Response and Resolution deadlines based on a predefined Severity Matrix (Sev 1 - Sev 4). Features automated timer pauses and escalation triggers.
 
-## Push notifications
+Immutable Audit Ledger: Database-level enforcement (REVOKE UPDATE, DELETE) ensures every status change, SLA pause, and Root Cause Analysis (RCA) submission is permanently recorded for regulatory compliance.
 
-The Service Worker's `push` handler surfaces high-priority alarm escalations and ticket status changes as native notifications, using `requireInteraction` for `critical`-priority alerts so they don't auto-dismiss. Wire this up to a push provider (e.g. web-push with VAPID keys) on your backend.
+Telemetry Ingestion: Exposes secure webhook endpoints allowing plant-floor alarm servers to automatically generate Severity 1 tickets when critical equipment tags drop offline.
 
-## Local development
+Role-Based Access Control (RBAC): Distinct workflows for field_engineer, supervisor, and client.
 
-```bash
+🔄 Ticket Lifecycle & State Machine
+To enforce compliance, tickets cannot jump states arbitrarily. The database and PWA UI enforce strict pathing, requiring mandatory Root Cause Analysis (RCA) data before a ticket can be resolved, and Supervisor Verification before it can be closed.
+
+stateDiagram-v2
+    [*] --> Open : Telemetry or Manual Log
+    Open --> Assigned : Dispatcher Assigns
+    
+    state "Active Investigation" as Active {
+        Assigned --> In_Progress : Engineer Starts Work
+        In_Progress --> Pending_Info : SLA Clock Paused
+        Pending_Info --> In_Progress : SLA Clock Resumed
+    }
+    
+    Active --> Resolved : Requires RCA & Linked SCADA Node
+    Resolved --> Active : Fix Failed (Reopened)
+    Resolved --> Closed : Supervisor Verifies Fix
+    Closed --> [*]
+
+🗄️ Database Architecture (v2)The local IndexedDB mirrors the central PostgreSQL schema to ensure flawless 1:1 synchronization.Store / TableKeyPurposeticketsticketId (UUID)Full-lifecycle incident records including RCA data, photo references, and active SLA clocks.audit_logauditId (Serial)Append-only ledger tracking every action, user ID, and timestamp for compliance auditing.sla_policiesseverity (1-4)Enterprise response/resolution matrices governing compliance deadlines and escalation chains.sync_conflictsconflictIdQuarantine zone for tickets edited simultaneously by an offline field engineer and the central server.equipment_tagstagIdKnown PLC/HMI/RTU physical assets, indexed by system platform (Wonderware, TIA Portal, iFIX).knowledge_articlesarticleIdCached troubleshooting SOPs pulled via stale-while-revalidate for immediate offline diagnostics.
+
+🔀 Bidirectional Sync & Conflict ProtocolWhen an engineer regains Wi-Fi/4G connectivity, the Service Worker executes a background synchronization protocol to merge local changes with the central database safely.
+
+sequenceDiagram
+    participant IDB as Local IndexedDB
+    participant SW as Service Worker
+    participant API as Enterprise Backend
+    participant PG as PostgreSQL DB
+
+    Note over IDB,PG: Connection Restored
+    SW->>IDB: 1. Read queued offline tickets
+    SW->>API: 2. PULL: Fetch server tickets since lastSync
+    API->>PG: Query latest revisions
+    PG-->>API: Return server updates
+    API-->>SW: Server payload
+    
+    alt Local & Server match or Local is newer
+        SW->>IDB: 3. Merge server changes safely
+    else Conflict (Both edited simultaneously)
+        SW->>IDB: Route to 'sync_conflicts' table
+        SW->>UI: Trigger "Merge Resolution" Dialog
+    end
+
+    SW->>API: 4. PUSH: Send local queued updates
+    API->>PG: Commit validated changes
+    PG-->>API: 200 OK + New serverRev
+    API-->>SW: Confirm Sync
+    SW->>IDB: 5. Mark as 'synced', update serverRev
+
+🛠️ Local Development & Deployment
+Prerequisites
+Node.js v18+
+
+PostgreSQL 14+
+
+Setup
+
+1.Clone & Install:
+git clone [https://github.com/your-org/AGAC-SCADA-SupportDesk.git](https://github.com/your-org/AGAC-SCADA-SupportDesk.git)
+cd AGAC-SCADA-SupportDesk
 npm install
+
+2. Database Initialization:
+Execute the backend/schema.sql file against your local Postgres instance to generate the enterprise schema, enums, and check constraints.
+
+3. Run Dev Server:
 npm run dev
-```
 
-This starts `http-server` at `http://localhost:8080` with caching disabled, so service worker changes are picked up on reload. Service workers require `localhost` or HTTPS — `http-server` on localhost satisfies this for local testing.
+Starts the local HTTP server on http://localhost:8080. Service Workers operate normally on localhost without HTTPS.
 
-To test offline behavior: open the app, load it once, then use your browser's DevTools → Network → "Offline" toggle (or Application → Service Workers → "Offline") and reload.
-
-## Icons & assets
-
-`icons/` currently ships placeholder PNGs. Replace them with real Al Gurg-branded assets: `icon-192.png`, `icon-512.png` (maskable), `apple-touch-icon.png`, `favicon.ico`, and `og-image.png` for social sharing previews.
-
-## Known stubs to complete before production
-
-- [ ] `/api/clickup/*` backend proxy holding the ClickUp API token
-- [ ] Real cached KB content for GE iFIX, Wonderware, and Siemens TIA Portal V21
-- [ ] Push notification backend (VAPID keys, subscription storage)
-- [ ] Operator auth/session (currently `operatorId` is hardcoded in `js/app.js`)
-- [ ] Final branded icon and `og-image.png` assets
-
-### Enterprise IndexedDB Schema (js/db.js - v2)
-
-| Store | Key | Purpose |
-| :--- | :--- | :--- |
-| `tickets` | `ticketId` (UUID) | Full-lifecycle ticket records including RCA data and strict SLA clocks (`responseDeadline`, `resolveDeadline`). |
-| `audit_log` | `auditId` (Auto) | Append-only, immutable ledger tracking every status change, SLA pause, and escalation for regulatory compliance. |
-| `sla_policies` | `severity` (1-4) | Enterprise response and resolution matrices governing ticket deadlines and escalation chains. |
-| `sync_conflicts` | `conflictId` | Quarantine zone for tickets edited simultaneously by an offline engineer and the central server. |
-| `equipment_tags` | `tagId` | Known PLC/HMI/RTU tags, indexed by system (Wonderware, TIA Portal, iFIX) and location. |
-| `knowledge_articles` | `articleId` | Cached troubleshooting SOPs pulled via stale-while-revalidate for offline diagnostics. |
+Offline Testing
+1. Load the app at http://localhost:8080.
+2. Open Chrome DevTools ➡️ Application tab ➡️ Service Workers ➡️ check Offline.
+3. Create a ticket, pause an SLA, or resolve an issue. Ensure changes queue locally.
+4. Uncheck Offline to observe the background sync engine reconcile changes via the Network tab.
