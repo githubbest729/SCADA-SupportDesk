@@ -10,10 +10,7 @@ SupportDesk allows SCADA engineers and operators to log incidents, parse offline
 
 The ecosystem relies on an offline-first browser database (IndexedDB) interacting with a centralized Node.js/PostgreSQL backend via a strict conflict-resolution sync engine.
 
-```
-
-mermaid
-
+```mermaid
 graph TD
     subgraph Plant Floor [Plant Floor / Edge Devices]
         UI[PWA Web UI / Tablet]
