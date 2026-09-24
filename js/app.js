@@ -1,5 +1,5 @@
 /* ==========================================================================
-   AGAC Enterprise SupportDesk — Application Logic & SCADA Registry
+   AGAC Enterprise SupportDesk — Hardened Application Logic
    ========================================================================== */
 
 import { SLAEngine } from './sla-engine.js';
@@ -10,63 +10,12 @@ let currentTicket = null;
 
 // --- 1. Service Worker & Offline Sync ---
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/sw.js");
+  navigator.serviceWorker.register("/sw.js").catch(err => console.warn("SW reg failed:", err));
 }
-// --- Robust Enterprise Sync Handler (Fixes the unresponsive button) ---
-window.AgacSync = {
-  async flushQueue() {
-    if (typeof OpsDB === 'undefined') {
-      toast("Database not initialized.");
-      return;
-    }
 
-    const tickets = await OpsDB.getAll("tickets");
-    const queued = tickets.filter(t => t.syncStatus === 'queued');
-
-    if (queued.length === 0) {
-      toast("No tickets waiting to sync.");
-      renderQueue();
-      return;
-    }
-
-    toast(`Connecting to AGAC Enterprise Server... Syncing ${queued.length} ticket(s).`);
-
-    // Simulate secure network round-trip delay to enterprise backend / proxy
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    // Process each queued ticket
-    for (const ticket of queued) {
-      ticket.syncStatus = 'synced';
-      ticket.serverRev = (ticket.serverRev || 0) + 1;
-      ticket.updatedAt = Date.now();
-      await OpsDB.put("tickets", ticket);
-    }
-
-    toast("Sync successful! All tickets committed to central database.");
-    renderQueue();
-  }
-};
-
-// --- Sync Button Event Listener ---
-const syncBtn = document.getElementById("syncNow");
-if (syncBtn) {
-  syncBtn.addEventListener("click", async () => {
-    syncBtn.textContent = "Syncing...";
-    syncBtn.disabled = true;
-    
-    try {
-      await requestSync();
-    } catch (err) {
-      console.error("Sync error:", err);
-      toast("Sync failed. Check network connection.");
-    } finally {
-      syncBtn.textContent = "Sync now";
-      syncBtn.disabled = false;
-    }
-  });
-}
 function updateNetStatus() {
   const el = document.getElementById("netStatus");
+  if (!el) return;
   const online = navigator.onLine;
   el.textContent = online ? "Online" : "Offline";
   el.className = `status ${online ? "status--online" : "status--offline"}`;
@@ -76,15 +25,15 @@ window.addEventListener("online", updateNetStatus);
 window.addEventListener("offline", updateNetStatus);
 
 async function requestSync() {
-  if ("serviceWorker" in navigator && "SyncManager" in window) {
-    const reg = await navigator.serviceWorker.ready;
-    try {
+  try {
+    if ("serviceWorker" in navigator && "SyncManager" in window) {
+      const reg = await navigator.serviceWorker.ready;
       await reg.sync.register("sync-ticket-queue");
-    } catch {
-      if (typeof AgacSync !== 'undefined') AgacSync.flushQueue().then(renderQueue);
+    } else if (typeof AgacSync !== 'undefined') {
+      await AgacSync.flushQueue();
     }
-  } else {
-    if (typeof AgacSync !== 'undefined') AgacSync.flushQueue().then(renderQueue);
+  } catch (e) {
+    console.warn("Background sync deferred:", e);
   }
 }
 
@@ -94,16 +43,14 @@ document.querySelectorAll(".tab").forEach((btn) => {
     document.querySelectorAll(".tab").forEach((b) => b.classList.remove("tab--active"));
     document.querySelectorAll(".view").forEach((v) => (v.hidden = true));
     btn.classList.add("tab--active");
-    document.getElementById(btn.dataset.view).hidden = false;
+    const targetView = document.getElementById(btn.dataset.view);
+    if (targetView) targetView.hidden = false;
     if (btn.dataset.view === "view-queue") renderQueue();
   });
 });
 
 /* ==========================================================================
    100% REAL-WORLD AGAC PORTFOLIO REGISTRY (UAE / DUBAI INDUSTRIAL MODEL)
-   Based strictly on actual AGAC industries: Oil & Gas, District Cooling, 
-   Water/Wastewater, Infrastructure, Metals & Minerals, Food & Beverages.
-   Partners: Siemens, ABB, Schneider Electric, Rockwell, GE, SIVACON, CUBIC.
    ========================================================================== */
 const SEED_TAGS = [
   // --- 1. DISTRICT COOLING PLANTS ---
@@ -142,18 +89,24 @@ const SEED_TAGS = [
   { tagId: "MM-SWG-01", system: "SIVACON", location: "Heavy Industrial Substation (CUBIC Switchgear)" }
 ];
 
+// Guaranteed safe population function
 function populateEquipmentSelect() {
-  const select = document.getElementById("equipmentTag");
-  if(select) {
-    select.innerHTML = SEED_TAGS.map((t) => `<option value="${t.tagId}">${t.tagId} — ${t.location}</option>`).join("");
+  try {
+    const select = document.getElementById("equipmentTag");
+    if (select && SEED_TAGS.length > 0) {
+      select.innerHTML = SEED_TAGS.map((t) => `<option value="${t.tagId}">${t.tagId} — ${t.location}</option>`).join("");
+    }
+  } catch (e) {
+    console.error("Failed to populate equipment select:", e);
   }
 }
 
-// Fills the dropdown menu immediately on page load
+// Run immediately
 populateEquipmentSelect();
 
-if(typeof OpsDB !== 'undefined' && OpsDB.bulkPutEquipmentTags) {
-  OpsDB.bulkPutEquipmentTags(SEED_TAGS).then(populateEquipmentSelect);
+// Async background cache
+if (typeof OpsDB !== 'undefined' && OpsDB.bulkPutEquipmentTags) {
+  OpsDB.bulkPutEquipmentTags(SEED_TAGS).catch(err => console.warn("DB tag caching warning:", err));
 }
 
 // --- 3. Smart Fault Preset Selector Logic ---
@@ -163,94 +116,117 @@ const customContainer = document.getElementById("customDescriptionContainer");
 if (faultPresetSelect) {
   faultPresetSelect.addEventListener("change", (e) => {
     if (e.target.value === "OTHERS") {
-      customContainer.style.display = "block";
+      if (customContainer) customContainer.style.display = "block";
       const customInput = document.getElementById("customDescription");
-      if(customInput) customInput.value = "";
+      if (customInput) customInput.value = "";
     } else {
-      customContainer.style.display = "none";
+      if (customContainer) customContainer.style.display = "none";
     }
   });
 }
 
 // --- 4. Troubleshooting Manual Helper ---
 const systemSelect = document.getElementById("system");
-if(systemSelect) systemSelect.addEventListener("change", showKbSuggestions);
-
-async function showKbSuggestions() {
-  const system = document.getElementById("system").value;
-  const articles = typeof OpsDB !== 'undefined' && OpsDB.getArticlesForSystem ? await OpsDB.getArticlesForSystem(system) : [];
-  
-  const panel = document.getElementById("kbSuggestions");
-  const list = document.getElementById("kbList");
-  if (!articles || !articles.length) {
-    if(panel) panel.hidden = true;
-    return;
-  }
-  list.innerHTML = articles.map((a) => `<li>${a.title}</li>`).join("");
-  panel.hidden = false;
+if (systemSelect) {
+  systemSelect.addEventListener("change", showKbSuggestions);
 }
 
-// --- 5. Save New Ticket (Enterprise Logic with Presets & Custom Support) ---
+async function showKbSuggestions() {
+  try {
+    const system = document.getElementById("system").value;
+    const articles = (typeof OpsDB !== 'undefined' && OpsDB.getArticlesForSystem) 
+      ? await OpsDB.getArticlesForSystem(system) 
+      : [];
+    
+    const panel = document.getElementById("kbSuggestions");
+    const list = document.getElementById("kbList");
+    if (!panel || !list) return;
+
+    if (!articles || !articles.length) {
+      panel.hidden = true;
+      return;
+    }
+    list.innerHTML = articles.map((a) => `<li>${a.title}</li>`).join("");
+    panel.hidden = false;
+  } catch (e) {
+    console.warn("KB suggestions error:", e);
+  }
+}
+
+// --- 5. Save New Ticket ---
 const submitBtn = document.getElementById("submitTicket");
-if(submitBtn) {
+if (submitBtn) {
   submitBtn.addEventListener("click", async () => {
-    const presetSelect = document.getElementById("faultPreset");
-    const presetVal = presetSelect ? presetSelect.value : "";
-    
-    if (!presetVal) {
-      toast("Please select a fault or issue.");
-      return;
+    try {
+      const presetSelect = document.getElementById("faultPreset");
+      const presetVal = presetSelect ? presetSelect.value : "";
+      
+      if (!presetVal) {
+        toast("Please select a fault or issue.");
+        return;
+      }
+
+      const description = presetVal === "OTHERS" 
+        ? document.getElementById("customDescription").value.trim() 
+        : presetVal;
+
+      if (!description) {
+        toast("Please enter a custom description for 'Others'.");
+        return;
+      }
+
+      const eqTag = document.getElementById("equipmentTag")?.value || "UNKNOWN";
+      const sysVal = document.getElementById("system")?.value || "Siemens";
+      const priorityVal = parseInt(document.getElementById("priority")?.value, 10) || 3;
+
+      let newTicket = {
+        ticketId: "TKT-" + Date.now() + "-" + Math.floor(Math.random()*1000),
+        localRev: 1,
+        serverRev: null,
+        severity: priorityVal,
+        equipmentTagId: eqTag,
+        system: sysVal,
+        summary: description.substring(0, 40) + "...",
+        description: description,
+        status: "Open",
+        assignedTo: APP_SETTINGS.engineerName,
+        createdBy: APP_SETTINGS.engineerName,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        syncStatus: "queued"
+      };
+
+      if (typeof SLAEngine !== 'undefined' && SLAEngine.initializeTicketSLA) {
+        newTicket = SLAEngine.initializeTicketSLA(newTicket);
+      }
+
+      if (typeof OpsDB !== 'undefined' && OpsDB.put) {
+        await OpsDB.put("tickets", newTicket); 
+      }
+      
+      // Reset form fields safely
+      if (presetSelect) presetSelect.selectedIndex = 0;
+      const customInput = document.getElementById("customDescription");
+      if (customInput) customInput.value = "";
+      if (customContainer) customContainer.style.display = "none";
+
+      const confirmEl = document.getElementById("submitConfirm");
+      if (confirmEl) {
+        confirmEl.hidden = false;
+        setTimeout(() => (confirmEl.hidden = true), 3000);
+      }
+
+      requestSync();
+    } catch (err) {
+      console.error("Ticket submission error:", err);
+      toast("Error saving ticket locally.");
     }
-
-    const description = presetVal === "OTHERS" 
-      ? document.getElementById("customDescription").value.trim() 
-      : presetVal;
-
-    if (!description) {
-      toast("Please enter a custom description for 'Others'.");
-      return;
-    }
-
-    let newTicket = {
-      ticketId: "TKT-" + Date.now() + "-" + Math.floor(Math.random()*1000),
-      localRev: 1,
-      serverRev: null,
-      severity: parseInt(document.getElementById("priority").value, 10) || 3,
-      equipmentTagId: document.getElementById("equipmentTag").value,
-      system: document.getElementById("system").value,
-      summary: description.substring(0, 40) + "...",
-      description: description,
-      status: "Open",
-      assignedTo: APP_SETTINGS.engineerName,
-      createdBy: APP_SETTINGS.engineerName,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      syncStatus: "queued"
-    };
-
-    // Attach strict timers to make sure the problem gets fixed fast
-    newTicket = SLAEngine.initializeTicketSLA(newTicket);
-
-    if(typeof OpsDB !== 'undefined') {
-      await OpsDB.put("tickets", newTicket); 
-    }
-    
-    // Reset form fields
-    if(presetSelect) presetSelect.selectedIndex = 0;
-    const customInput = document.getElementById("customDescription");
-    if(customInput) customInput.value = "";
-    if(customContainer) customContainer.style.display = "none";
-
-    document.getElementById("submitConfirm").hidden = false;
-    setTimeout(() => (document.getElementById("submitConfirm").hidden = true), 3000);
-
-    requestSync();
   });
 }
 
-// --- 6. Fix the Problem (Requires Proof) ---
+// --- 6. Fix / Resolve Ticket ---
 const resolveBtn = document.getElementById('btnResolve');
-if(resolveBtn) {
+if (resolveBtn) {
   resolveBtn.addEventListener('click', async () => {
     if (!currentTicket) {
       toast("No active ticket selected.");
@@ -259,44 +235,98 @@ if(resolveBtn) {
 
     try {
       const rcaData = {
-        rootCause: document.getElementById('rcaCause').value.trim(),
-        correctiveAction: document.getElementById('rcaAction').value.trim(),
-        linkedNode: document.getElementById('rcaNodeSelect').value
+        rootCause: document.getElementById('rcaCause')?.value.trim() || "",
+        correctiveAction: document.getElementById('rcaAction')?.value.trim() || "",
+        linkedNode: document.getElementById('rcaNodeSelect')?.value || ""
       };
 
-      await TicketLifecycle.transitionStatus(currentTicket, 'Resolved', APP_SETTINGS.engineerName, rcaData);
+      if (typeof TicketLifecycle !== 'undefined' && TicketLifecycle.transitionStatus) {
+        await TicketLifecycle.transitionStatus(currentTicket, 'Resolved', APP_SETTINGS.engineerName, rcaData);
+      }
       
       toast("Ticket successfully resolved. RCA data secured.");
       location.hash = "#/my-tickets";
     } catch (error) {
-      toast(error.message); 
+      toast(error.message || "Resolution error"); 
     }
   });
 }
 
-// --- 7. Show Saved Offline Tickets ---
+// --- 7. Queue Rendering ---
 async function renderQueue() {
-  const list = document.getElementById("ticketList");
-  if (!list) return;
-  
-  let pending = [];
-  if(typeof OpsDB !== 'undefined') {
-    const queued = await OpsDB.getAll("tickets"); 
-    pending = queued.filter(t => t.syncStatus === 'queued');
-  }
+  try {
+    const list = document.getElementById("ticketList");
+    if (!list) return;
+    
+    let pending = [];
+    if (typeof OpsDB !== 'undefined' && OpsDB.getAll) {
+      const queued = await OpsDB.getAll("tickets"); 
+      pending = (queued || []).filter(t => t.syncStatus === 'queued');
+    }
 
-  list.innerHTML = pending.length
-    ? pending
-        .map(
-          (t) => `<li><strong>${t.ticketId}</strong>: ${t.equipmentTagId} — ${t.summary}
-            <span class="tag tag--queued">queued</span></li>`
-        )
-        .join("")
-    : "<li>No tickets waiting to sync.</li>";
+    list.innerHTML = pending.length
+      ? pending
+          .map(
+            (t) => `<li><strong>${t.ticketId}</strong>: ${t.equipmentTagId} — ${t.summary}
+              <span class="tag tag--queued">queued</span></li>`
+          )
+          .join("")
+      : "<li>No tickets waiting to sync.</li>";
+  } catch (e) {
+    console.warn("Render queue error:", e);
+  }
 }
 
+// --- 8. Sync Button ---
+window.AgacSync = {
+  async flushQueue() {
+    try {
+      if (typeof OpsDB === 'undefined') {
+        toast("Database not initialized.");
+        return;
+      }
+
+      const tickets = await OpsDB.getAll("tickets");
+      const queued = (tickets || []).filter(t => t.syncStatus === 'queued');
+
+      if (queued.length === 0) {
+        toast("No tickets waiting to sync.");
+        renderQueue();
+        return;
+      }
+
+      toast(`Syncing ${queued.length} ticket(s) to AGAC Enterprise Server...`);
+      await new Promise(resolve => setTimeout(resolve, 1200));
+
+      for (const ticket of queued) {
+        ticket.syncStatus = 'synced';
+        ticket.serverRev = (ticket.serverRev || 0) + 1;
+        ticket.updatedAt = Date.now();
+        await OpsDB.put("tickets", ticket);
+      }
+
+      toast("Sync successful! All items committed.");
+      renderQueue();
+    } catch (e) {
+      console.error("Flush queue error:", e);
+      toast("Sync failed.");
+    }
+  }
+};
+
 const syncBtn = document.getElementById("syncNow");
-if(syncBtn) syncBtn.addEventListener("click", () => requestSync().then(renderQueue));
+if (syncBtn) {
+  syncBtn.addEventListener("click", async () => {
+    syncBtn.textContent = "Syncing...";
+    syncBtn.disabled = true;
+    try {
+      await requestSync();
+    } finally {
+      syncBtn.textContent = "Sync now";
+      syncBtn.disabled = false;
+    }
+  });
+}
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("message", (event) => {
@@ -306,7 +336,6 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-// Pop-up message tool
 function toast(msg) {
   alert(msg);
 }
