@@ -43,6 +43,29 @@ window.AgacSync = {
   }
 };
 
+// --- Guaranteed Safe Equipment Tag Population ---
+function populateEquipmentSelect() {
+  try {
+    const select = document.getElementById("equipmentTag");
+    if (select && typeof SEED_TAGS !== 'undefined' && SEED_TAGS.length > 0) {
+      select.innerHTML = SEED_TAGS.map(
+        (t) => `<option value="${t.tagId}">${t.tagId} — ${t.location}</option>`
+      ).join("");
+    } else {
+      console.warn("Equipment dropdown element not found.");
+    }
+  } catch (e) {
+    console.error("Failed to populate equipment select:", e);
+  }
+}
+
+// Run safely when the DOM is fully loaded
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', populateEquipmentSelect);
+} else {
+  populateEquipmentSelect();
+}
+
 const syncBtn = document.getElementById("syncNow");
 if (syncBtn) {
   syncBtn.addEventListener("click", async () => {
