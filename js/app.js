@@ -1,3 +1,14 @@
+/* ==========================================================================
+   AGAC Enterprise SupportDesk — Application Logic
+   ========================================================================== */
+
+// IMPORT THE ENTERPRISE MODULES
+import { SLAEngine } from './sla-engine.js';
+import { TicketLifecycle } from './ticket-lifecycle.js';
+
+let APP_SETTINGS = { engineerName: "Christian Tosita Espinosa", role: "SCADA Engineer" };
+let currentTicket = null; // This will hold the ticket currently being viewed/edited
+
 // --- Service worker registration ---
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js");
@@ -38,21 +49,29 @@ document.querySelectorAll(".tab").forEach((btn) => {
   });
 });
 
-// --- Populate equipment tags (seeded here; production loads from equipment_tags store) ---
+// --- Populate equipment tags ---
 const SEED_TAGS = [
   { tagId: "PLC-14", system: "iFIX", location: "Substation B" },
   { tagId: "HMI-07", system: "Wonderware", location: "Substation B" },
   { tagId: "RTU-22", system: "TIA Portal V21", location: "Substation C" },
 ];
-AgacDb.bulkPutEquipmentTags(SEED_TAGS).then(populateEquipmentSelect);
 
-async function populateEquipmentSelect() {
+// Initialize dropdown
+function populateEquipmentSelect() {
   const select = document.getElementById("equipmentTag");
-  select.innerHTML = SEED_TAGS.map((t) => `<option value="${t.tagId}">${t.tagId} — ${t.location}</option>`).join("");
+  if(select) {
+    select.innerHTML = SEED_TAGS.map((t) => `<option value="${t.tagId}">${t.tagId} — ${t.location}</option>`).join("");
+  }
+}
+// Assuming AgacDb is globally available from your db.js
+if(typeof AgacDb !== 'undefined' && AgacDb.bulkPutEquipmentTags) {
+  AgacDb.bulkPutEquipmentTags(SEED_TAGS).then(populateEquipmentSelect);
 }
 
-// --- Diagnostic assist: surface cached KB articles as system changes ---
-document.getElementById("system").addEventListener("change", showKbSuggestions);
+// --- Diagnostic assist: KB articles ---
+const systemSelect = document.getElementById("system");
+if(systemSelect) systemSelect.addEventListener("change", showKbSuggestions);
+
 async function showKbSuggestions() {
   const system = document.getElementById("system").value;
   const articles = await AgacDb.getArticlesForSystem(system);
@@ -66,42 +85,96 @@ async function showKbSuggestions() {
   panel.hidden = false;
 }
 
-// --- Ticket submission ---
-document.getElementById("submitTicket").addEventListener("click", async () => {
-  const draft = {
-    equipmentTagId: document.getElementById("equipmentTag").value,
-    system: document.getElementById("system").value,
-    description: document.getElementById("description").value.trim(),
-    priority: document.getElementById("priority").value,
-    clickupListId: "REPLACE_WITH_LIST_ID",
-    operatorId: "current-operator", // resolved from auth/session in production
-  };
-  if (!draft.description) return;
+// --- ENTERPRISE TICKET SUBMISSION ---
+const submitBtn = document.getElementById("submitTicket");
+if(submitBtn) {
+  submitBtn.addEventListener("click", async () => {
+    const description = document.getElementById("description").value.trim();
+    if (!description) {
+      toast("Description is required", "fault");
+      return;
+    }
 
-  await AgacDb.saveTicketDraft(draft);
-  document.getElementById("description").value = "";
-  document.getElementById("submitConfirm").hidden = false;
-  setTimeout(() => (document.getElementById("submitConfirm").hidden = true), 3000);
+    // 1. Build the v2 Enterprise Ticket Base
+    let newTicket = {
+      ticketId: "TKT-" + Date.now() + "-" + Math.floor(Math.random()*1000),
+      localRev: 1,
+      serverRev: null,
+      severity: parseInt(document.getElementById("priority").value, 10) || 3, // Must be 1, 2, 3, or 4
+      equipmentTagId: document.getElementById("equipmentTag").value,
+      system: document.getElementById("system").value,
+      summary: description.substring(0, 40) + "...",
+      description: description,
+      status: "Open",
+      assignedTo: APP_SETTINGS.engineerName,
+      createdBy: APP_SETTINGS.engineerName,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      syncStatus: "queued"
+    };
 
-  requestSync();
-});
+    // 2. Attach strict SLA Clocks via the Engine
+    newTicket = SLAEngine.initializeTicketSLA(newTicket);
+
+    // 3. Save to the new 'tickets' store
+    await OpsDB.put("tickets", newTicket); // Ensure your DB wrapper matches your v2 schema
+    
+    document.getElementById("description").value = "";
+    document.getElementById("submitConfirm").hidden = false;
+    setTimeout(() => (document.getElementById("submitConfirm").hidden = true), 3000);
+
+    requestSync();
+  });
+}
+
+// --- ENTERPRISE TICKET RESOLUTION ---
+const resolveBtn = document.getElementById('btnResolve');
+if(resolveBtn) {
+  resolveBtn.addEventListener('click', async () => {
+    if (!currentTicket) {
+      toast("No active ticket selected.", "fault");
+      return;
+    }
+
+    try {
+      const rcaData = {
+        rootCause: document.getElementById('rcaCause').value.trim(),
+        correctiveAction: document.getElementById('rcaAction').value.trim(),
+        linkedNode: document.getElementById('rcaNodeSelect').value // e.g. "Wonderware-HMI-02"
+      };
+
+      // The Lifecycle manager will enforce the RCA rules and pause/resume SLAs
+      await TicketLifecycle.transitionStatus(currentTicket, 'Resolved', APP_SETTINGS.engineerName, rcaData);
+      
+      toast("Ticket successfully resolved. RCA data secured.");
+      location.hash = "#/my-tickets";
+    } catch (error) {
+      // Catches missing RCA data or invalid state transitions
+      toast(error.message, "fault"); 
+    }
+  });
+}
 
 // --- Queue rendering ---
 async function renderQueue() {
   const list = document.getElementById("ticketList");
-  const queued = await AgacDb.getQueuedTickets();
-  list.innerHTML = queued.length
-    ? queued
+  const queued = await OpsDB.getAll("tickets"); // Fetching from the new v2 store
+  const pending = queued.filter(t => t.syncStatus === 'queued');
+
+  list.innerHTML = pending.length
+    ? pending
         .map(
-          (t) => `<li>${t.equipmentTagId} — ${t.description.slice(0, 60)}
+          (t) => `<li><strong>${t.ticketId}</strong>: ${t.equipmentTagId} — ${t.summary}
             <span class="tag tag--queued">queued</span></li>`
         )
         .join("")
     : "<li>No tickets waiting to sync.</li>";
 }
-document.getElementById("syncNow").addEventListener("click", () => requestSync().then(renderQueue));
 
-// --- Receive flush requests from the service worker's sync event ---
+const syncBtn = document.getElementById("syncNow");
+if(syncBtn) syncBtn.addEventListener("click", () => requestSync().then(renderQueue));
+
+// --- Receive flush requests from the service worker ---
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("message", (event) => {
     if (event.data?.type === "FLUSH_TICKET_QUEUE") {
