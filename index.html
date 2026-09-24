@@ -21,11 +21,11 @@
     <h1>Log an issue</h1>    
     <p class="lede">Report a plant-floor anomaly. It's saved locally and syncs to the central database when online.</p>
 
-    <label for="equipmentTag">Equipment tag</label>    
-    <select id="equipmentTag"></select>
+  <label for="equipmentTag">Equipment tag</label>    
+    <select id="equipmentTag" name="equipmentTag"></select>
 
     <label for="system">System Platform</label>    
-    <select id="system">      
+    <select id="system" name="system">      
       <option value="Siemens">Siemens (PLC, WinCC, TIA Portal)</option>      
       <option value="ABB">ABB (Control Systems, Drives)</option>      
       <option value="Schneider">Schneider Electric (EcoStruxure, PLCs)</option>      
@@ -33,6 +33,58 @@
       <option value="GE">GE (Proficy, iFIX)</option>      
       <option value="SIVACON">SIVACON / CUBIC / ArcSeis (Switchgear)</option>    
     </select>
+
+    <label for="faultPreset">What's happening? (Select common issue or type custom)</label>    
+    <select id="faultPreset" name="faultPreset" style="margin-bottom: 8px;">
+      <option value="" disabled selected>-- Select common plant fault or issue --</option>
+      
+      <!-- Communication & Network -->
+      <option value="PLC communication timeout / heartbeat failure">PLC communication timeout / heartbeat failure</option>
+      <option value="HMI to PLC Ethernet ring fault (MRP / DLR error)">HMI to PLC Ethernet ring fault (MRP / DLR error)</option>
+      <option value="SCADA Historian logging gap / timestamp drift">SCADA Historian logging gap / timestamp drift</option>
+      <option value="Fiber optic link down on core switch">Fiber optic link down on core switch</option>
+
+      <!-- Electrical & Power -->
+      <option value="UPS battery fault / low voltage alarm">UPS battery fault / low voltage alarm</option>
+      <option value="Main distribution board (MDB) incomer breaker trip">Main distribution board (MDB) incomer breaker trip</option>
+      <option value="Diesel generator failure to auto-start on mains loss">Diesel generator failure to auto-start on mains loss</option>
+      <option value="VFD drive fault / overcurrent trip">VFD drive fault / overcurrent trip</option>
+
+      <!-- District Cooling (DCP) & HVAC -->
+      <option value="Chiller high discharge pressure trip">Chiller high discharge pressure trip</option>
+      <option value="Chilled water differential pressure low">Chilled water differential pressure low</option>
+      <option value="Cooling tower fan vibration high alarm">Cooling tower fan vibration high alarm</option>
+      <option value="Primary chilled water pump interlock failure">Primary chilled water pump interlock failure</option>
+
+      <!-- Water Desalination & RO -->
+      <option value="RO high-pressure pump high vibration / seal leak">RO high-pressure pump high vibration / seal leak</option>
+      <option value="Ultrafiltration (UF) transmembrane pressure high">Ultrafiltration (UF) transmembrane pressure high</option>
+      <option value="Chemical dosing tank level low-low interlock">Chemical dosing tank level low-low interlock</option>
+      <option value="Permeate conductivity high alarm">Permeate conductivity high alarm</option>
+
+      <!-- Life Safety & F&G -->
+      <option value="Fire Alarm Control Panel (FACP) trouble signal">Fire Alarm Control Panel (FACP) trouble signal</option>
+      <option value="Gas detector (LEL / H2S) fault or pre-alarm">Gas detector (LEL / H2S) fault or pre-alarm</option>
+      <option value="VESDA aspirating smoke detector airflow fault">VESDA aspirating smoke detector airflow fault</option>
+
+      <!-- Custom Option -->
+      <option value="OTHERS">Others (Type custom description below)...</option>
+    </select>
+
+    <div id="customDescriptionContainer" style="display: none; margin-bottom: 8px;">
+      <label for="customDescription">Custom Issue Description</label>
+      <textarea id="customDescription" name="customDescription" rows="4" placeholder="Type custom fault description here..."></textarea>
+    </div>
+    
+    <label for="priority">Severity / SLA Priority</label>    
+    <select id="priority" name="priority">      
+      <option value="4">Severity 4 — Informational</option>      
+      <option value="3" selected>Severity 3 — Minor Impact</option>      
+      <option value="1">Severity 1 — Critical Outage</option>    
+    </select>
+
+    <label for="photo">Attach a photo of the fault LED (optional)</label>    
+    <input type="file" id="photo" name="photo" accept="image/*" capture="environment" />
 
     <label for="faultPreset">What's happening? (Select common issue or type custom)</label>    
     <select id="faultPreset" style="margin-bottom: 8px;">
