@@ -7,6 +7,8 @@
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#0E1420" />
   <link rel="stylesheet" href="css/style.css" />
+  <!-- Stops the favicon 404 error until you upload a real icon -->
+  <link rel="icon" href="data:;base64,iVBORw0KGgo=">
 </head>
 <body>  
   <header class="topbar">    
@@ -32,7 +34,6 @@
     <label for="description">What's happening?</label>    
     <textarea id="description" rows="4" placeholder="e.g. Fault LED flashing red on PLC-14, HMI shows communication timeout"></textarea>
 
-    <!-- UPDATED: Integer values mapping to the SEVERITY_MATRIX -->
     <label for="priority">Severity / SLA Priority</label>    
     <select id="priority">      
       <option value="4">Severity 4 — Informational</option>      
@@ -59,7 +60,7 @@
     <button id="syncNow" class="btn btn--secondary">Sync now</button>  
   </main>
 
-  <!-- NEW: RCA RESOLUTION VIEW (Required for Pillar 2 Status Transitions) -->
+  <!-- RCA RESOLUTION VIEW -->
   <main id="view-resolve" class="view" hidden>
     <h1>Resolve Ticket</h1>
     <p class="lede">Root Cause Analysis (RCA) is mandatory before closing an active incident.</p>
@@ -82,9 +83,8 @@
     <button data-view="view-resolve" class="tab">Resolve</button>  
   </nav>
 
-  <!-- UPDATED: Replaced clickup with sync-engine, added type="module" -->
+  <!-- FIX: type="module" allows the import statements to work! -->
   <script src="js/db.js"></script>  
-  <script type="module" src="js/sync-engine.js"></script>  
   <script type="module" src="js/app.js"></script>
 </body>
 </html>
