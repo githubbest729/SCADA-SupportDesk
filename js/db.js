@@ -1,108 +1,106 @@
-const DB_NAME = "agac-supportdesk";
-const DB_VERSION = 1;
+/* ==========================================================================
+   AGAC Enterprise SupportDesk — IndexedDB Local Storage Wrapper (OpsDB)
+   ========================================================================== */
 
-function openDb() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
+const DB_NAME = "AgacSupportDeskDB";
+const DB_VERSION = 2; // Upgraded to match enterprise v2 schema
 
-    req.onupgradeneeded = (event) => {
-      const db = event.target.result;
+window.OpsDB = {
+  db: null,
 
-      if (!db.objectStoreNames.contains("ticket_drafts")) {
-        const store = db.createObjectStore("ticket_drafts", { keyPath: "localId", autoIncrement: true });
-        store.createIndex("status", "status", { unique: false });
-        store.createIndex("equipmentTagId", "equipmentTagId", { unique: false });
-        store.createIndex("createdAt", "createdAt", { unique: false });
-      }
-
-      if (!db.objectStoreNames.contains("equipment_tags")) {
-        const store = db.createObjectStore("equipment_tags", { keyPath: "tagId" });
-        store.createIndex("system", "system", { unique: false }); // iFIX / Wonderware / TIA Portal
-        store.createIndex("location", "location", { unique: false });
-      }
-
-      if (!db.objectStoreNames.contains("knowledge_articles")) {
-        const store = db.createObjectStore("knowledge_articles", { keyPath: "articleId" });
-        store.createIndex("system", "system", { unique: false });
-        store.createIndex("faultCode", "faultCode", { unique: false });
-      }
-    };
-
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function withStore(storeName, mode, fn) {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(storeName, mode);
-    const store = tx.objectStore(storeName);
-    const result = fn(store);
-    tx.oncomplete = () => resolve(result);
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-const AgacDb = {
-  // --- Ticket drafts (the offline queue) ---
-  async saveTicketDraft(draft) {
-    return withStore("ticket_drafts", "readwrite", (store) =>
-      store.put({ ...draft, status: draft.status || "queued", createdAt: draft.createdAt || Date.now() })
-    );
-  },
-  async getQueuedTickets() {
-    const db = await openDb();
+  async init() {
+    if (this.db) return this.db;
     return new Promise((resolve, reject) => {
-      const tx = db.transaction("ticket_drafts", "readonly");
-      const index = tx.objectStore("ticket_drafts").index("status");
-      const req = index.getAll("queued");
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
-  },
-  async markTicketSynced(localId, clickupTaskId) {
-    return withStore("ticket_drafts", "readwrite", (store) => {
-      const getReq = store.get(localId);
-      getReq.onsuccess = () => {
-        const record = getReq.result;
-        if (record) {
-          record.status = "synced";
-          record.clickupTaskId = clickupTaskId;
-          record.syncedAt = Date.now();
-          store.put(record);
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+
+        // 1. Full-lifecycle tickets store (Offline queue & active records)
+        if (!db.objectStoreNames.contains("tickets")) {
+          const ticketStore = db.createObjectStore("tickets", { keyPath: "ticketId" });
+          ticketStore.createIndex("status", "status", { unique: false });
+          ticketStore.createIndex("syncStatus", "syncStatus", { unique: false });
+          ticketStore.createIndex("equipmentTagId", "equipmentTagId", { unique: false });
         }
+
+        // 2. Equipment registry store
+        if (!db.objectStoreNames.contains("equipment_tags")) {
+          db.createObjectStore("equipment_tags", { keyPath: "tagId" });
+        }
+
+        // 3. Knowledge Base cache store
+        if (!db.objectStoreNames.contains("knowledge_articles")) {
+          db.createObjectStore("knowledge_articles", { keyPath: "articleId" });
+        }
+
+        // 4. Audit log store
+        if (!db.objectStoreNames.contains("audit_log")) {
+          db.createObjectStore("audit_log", { keyPath: "auditId", autoIncrement: true });
+        }
+
+        // 5. Sync conflicts store
+        if (!db.objectStoreNames.contains("sync_conflicts")) {
+          db.createObjectStore("sync_conflicts", { keyPath: "conflictId", autoIncrement: true });
+        }
+      };
+
+      request.onsuccess = (event) => {
+        this.db = event.target.result;
+        resolve(this.db);
+      };
+
+      request.onerror = (event) => {
+        console.error("IndexedDB initialization failed:", event.target.error);
+        reject(event.target.error);
       };
     });
   },
 
-  // --- Equipment tags ---
-  async bulkPutEquipmentTags(tags) {
-    return withStore("equipment_tags", "readwrite", (store) => tags.forEach((t) => store.put(t)));
-  },
-  async getEquipmentTag(tagId) {
-    const db = await openDb();
+  async put(storeName, data) {
+    await this.init();
     return new Promise((resolve, reject) => {
-      const req = db.transaction("equipment_tags", "readonly").objectStore("equipment_tags").get(tagId);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
+      const transaction = this.db.transaction(storeName, "readwrite");
+      const store = transaction.objectStore(storeName);
+      const request = store.put(data);
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
     });
   },
 
-  // --- Knowledge base articles (troubleshooting trees / manuals) ---
-  async bulkPutArticles(articles) {
-    return withStore("knowledge_articles", "readwrite", (store) => articles.forEach((a) => store.put(a)));
-  },
-  async getArticlesForSystem(system) {
-    const db = await openDb();
+  async getAll(storeName) {
+    await this.init();
     return new Promise((resolve, reject) => {
-      const index = db.transaction("knowledge_articles", "readonly").objectStore("knowledge_articles").index("system");
-      const req = index.getAll(system);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
+      const transaction = this.db.transaction(storeName, "readonly");
+      const store = transaction.objectStore(storeName);
+      const request = store.getAll();
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
     });
   },
+
+  async bulkPutEquipmentTags(tags) {
+    await this.init();
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction("equipment_tags", "readwrite");
+      const store = transaction.objectStore("equipment_tags");
+      tags.forEach(tag => store.put(tag));
+
+      transaction.oncomplete = () => resolve(true);
+      transaction.onerror = () => reject(transaction.error);
+    });
+  },
+
+  async getArticlesForSystem(systemName) {
+    // Fallback stub for offline troubleshooting manuals
+    return [
+      { articleId: "KB-01", system: systemName, title: `Standard Operating Procedure: Troubleshooting ${systemName} Comms Dropouts` },
+      { articleId: "KB-02", system: systemName, title: `Field Guide: Resetting PLC / RTU Node Faults on ${systemName}` }
+    ];
+  }
 };
 
-if (typeof self !== "undefined") self.AgacDb = AgacDb;
-if (typeof module !== "undefined") module.exports = AgacDb;
+// Auto-initialize on script load
+OpsDB.init().catch(err => console.warn("DB auto-init warning:", err));
