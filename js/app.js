@@ -56,13 +56,16 @@ const SEED_TAGS = [
   { tagId: "RTU-22", system: "TIA Portal V21", location: "Substation C" },
 ];
 
-// Initialize dropdown
 function populateEquipmentSelect() {
   const select = document.getElementById("equipmentTag");
   if(select) {
     select.innerHTML = SEED_TAGS.map((t) => `<option value="${t.tagId}">${t.tagId} — ${t.location}</option>`).join("");
   }
 }
+
+// FIX: Run this immediately so the dropdown is never empty!
+populateEquipmentSelect();
+
 // Assuming AgacDb is globally available from your db.js
 if(typeof AgacDb !== 'undefined' && AgacDb.bulkPutEquipmentTags) {
   AgacDb.bulkPutEquipmentTags(SEED_TAGS).then(populateEquipmentSelect);
