@@ -49,8 +49,13 @@ graph TD
     class UI,SW primary;
     class API,Tele,Push secondary;
     class PG,IDB database;
+```
 
-⚙️ Core Enterprise Pillars
+---
+
+## ⚙️ Core Enterprise Pillars
+
+
 Bidirectional Offline Sync: Employs a localRev vs. serverRev tracking system. Automatically resolves offline editing conflicts by routing contested tickets to a quarantine queue for dispatcher review.
 
 Strict SLA Engine: Calculates millisecond-accurate Response and Resolution deadlines based on a predefined Severity Matrix (Sev 1 - Sev 4). Features automated timer pauses and escalation triggers.
