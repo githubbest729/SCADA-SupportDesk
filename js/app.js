@@ -8,12 +8,11 @@ import { TicketLifecycle } from './ticket-lifecycle.js';
 let APP_SETTINGS = { engineerName: "Christian Tosita Espinosa", role: "SCADA Engineer" };
 let currentTicket = null;
 
-// --- Service worker registration ---
+// --- 1. Service Worker & Offline Sync ---
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js");
 }
 
-// --- Network status pill ---
 function updateNetStatus() {
   const el = document.getElementById("netStatus");
   const online = navigator.onLine;
@@ -37,7 +36,7 @@ async function requestSync() {
   }
 }
 
-// --- Tab navigation ---
+// --- 2. Tab Navigation ---
 document.querySelectorAll(".tab").forEach((btn) => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".tab").forEach((b) => b.classList.remove("tab--active"));
@@ -49,59 +48,46 @@ document.querySelectorAll(".tab").forEach((btn) => {
 });
 
 /* ==========================================================================
-   100% ENTERPRISE PLANT REGISTRY (AGAC MULTI-VENDOR MODEL)
-   Covers Siemens, Rockwell, Schneider, ABB, GE, and AVEVA platforms
-   across Power, Water, DCP, HVAC, LSS, and EX systems.
+   100% REAL-WORLD AGAC PORTFOLIO REGISTRY
+   Based strictly on actual AGAC industries: Oil & Gas, District Cooling, 
+   Water/Wastewater, Infrastructure, Metals & Minerals, Food & Beverages.
+   Partners: Siemens, ABB, Schneider Electric, Rockwell, GE, SIVACON, CUBIC.
    ========================================================================== */
 const SEED_TAGS = [
-  // --- 1. CONTROL ROOM, SCADA & OT NETWORK ---
-  { tagId: "SCADA-AOS-01", system: "AVEVA", location: "Main Control Room (App Server Primary)" },
-  { tagId: "HIST-SRV-01", system: "AVEVA", location: "Data Center (Historian Primary)" },
-  { tagId: "EWS-01", system: "Siemens", location: "Engineering Workstation 1 (TIA Portal V21)" },
-  { tagId: "EWS-02", system: "Rockwell", location: "Engineering Workstation 2 (Studio 5000)" },
-  { tagId: "OWS-01", system: "GE", location: "Operator Workstation 1 (iFIX)" },
-  { tagId: "FW-OT-01", system: "Network", location: "Data Center (OT/IT Boundary Firewall)" },
-  { tagId: "SW-CORE-A", system: "Network", location: "Data Center (Core Switch A - Fiber Ring)" },
+  // --- 1. DISTRICT COOLING PLANTS ---
+  { tagId: "DCP-PLC-01", system: "Siemens", location: "District Cooling Plant A (Chiller Controller)" },
+  { tagId: "DCP-VFD-01", system: "ABB", location: "District Cooling Plant A (Chilled Water Pump Drive)" },
+  { tagId: "DCP-SCADA-01", system: "GE", location: "District Cooling Plant B (iFIX SCADA Server)" },
+  { tagId: "DCP-MCC-01", system: "SIVACON", location: "District Cooling Plant B (Motor Control Center)" },
 
-  // --- 2. POWER & ELECTRICAL DISTRIBUTION ---
-  { tagId: "GIS-132KV-01", system: "ABB", location: "Primary Substation (132kV Switchgear)" },
-  { tagId: "MVSG-11KV-01", system: "Schneider", location: "Substation A (11kV Switchgear)" },
-  { tagId: "TRF-2500-01", system: "Schneider", location: "Substation A (2500kVA Transformer)" },
-  { tagId: "LVSG-MDB-01", system: "Siemens", location: "LV Room 1 (SIVACON Main Distribution Board)" },
-  { tagId: "MCC-CHLR-01", system: "Rockwell", location: "Chiller Plant Room (Motor Control Center)" },
-  { tagId: "UPS-MCR-01", system: "Network", location: "Main Control Room (80kVA Parallel UPS A)" },
-  { tagId: "GEN-DGN-01", system: "Siemens", location: "Generator Yard (2.5MW Diesel Genset)" },
+  // --- 2. WATER & WASTEWATER ---
+  { tagId: "WTP-PLC-01", system: "Schneider", location: "Water Treatment Plant (Modicon M580 Pump Station)" },
+  { tagId: "RO-PLC-01", system: "Siemens", location: "Desalination RO Plant (Reverse Osmosis Train 1)" },
+  { tagId: "RO-VFD-01", system: "ABB", location: "Desalination RO Plant (High Pressure Pump Drive)" },
+  { tagId: "TSE-RTU-01", system: "Rockwell", location: "Wastewater Lift Station (CompactLogix RTU)" },
 
-  // --- 3. DISTRICT COOLING PLANT (DCP) & HVAC ---
-  { tagId: "PLC-CHLR-01", system: "Siemens", location: "Chiller Plant (S7-400H Chiller 1 Controller)" },
-  { tagId: "PLC-CHLR-02", system: "Siemens", location: "Chiller Plant (S7-400H Chiller 2 Controller)" },
-  { tagId: "VFD-PCHWP-01", system: "ABB", location: "Pump Room (Primary Chilled Water Pump Drive)" },
-  { tagId: "PLC-CT-01", system: "Rockwell", location: "Cooling Tower Roof (CompactLogix Tower 1)" },
-  { tagId: "HMI-CT-01", system: "Rockwell", location: "Cooling Tower Roof (PanelView Plus HMI)" },
+  // --- 3. OIL & GAS ---
+  { tagId: "OG-PLC-ESD", system: "Siemens", location: "Onshore Processing Facility (Failsafe ESD Controller)" },
+  { tagId: "OG-HMI-01", system: "Rockwell", location: "Wellhead Control Panel (PanelView HMI)" },
+  { tagId: "OG-SCADA-01", system: "Schneider", location: "Pipeline Monitoring (ClearSCADA)" },
+  { tagId: "OG-SWG-01", system: "SIVACON", location: "Refinery Substation (ArcSeis Low Voltage Switchgear)" },
 
-  // --- 4. WATER DESALINATION (RO) & WASTEWATER (TSE) ---
-  { tagId: "PLC-INT-01", system: "Schneider", location: "Seawater Intake (Modicon M580 Pump Station)" },
-  { tagId: "PLC-RO-01", system: "Siemens", location: "RO Plant (Reverse Osmosis Train 1)" },
-  { tagId: "VFD-HPP-01", system: "ABB", location: "RO Plant (High Pressure Pump Drive 1)" },
-  { tagId: "TNK-PRM-01", system: "GE", location: "Storage (Permeate Water Tank Level Monitor)" },
+  // --- 4. INFRASTRUCTURE & AUTOMATION ---
+  { tagId: "INF-DCS-01", system: "ABB", location: "Airport Facility Management (800xA DCS Node)" },
+  { tagId: "INF-MDB-01", system: "SIVACON", location: "Utility Substation (Main Distribution Board)" },
+  { tagId: "INF-MCC-01", system: "SIVACON", location: "Tunnel Ventilation System (CUBIC Modular Panel)" },
+  { tagId: "INF-BMS-01", system: "Schneider", location: "Commercial Tower (Building Management Controller)" },
 
-  // --- 5. LIFE SAFETY SYSTEMS (LSS) & FIRE/GAS ---
-  { tagId: "FACP-01", system: "LSS", location: "Main Control Room (Main Fire Alarm Control Panel)" },
-  { tagId: "VESDA-01", system: "LSS", location: "Data Center (Aspirating Smoke Detection)" },
-  { tagId: "FM200-01", system: "LSS", location: "Data Center (Gas Suppression Release Panel)" },
-  { tagId: "PMP-FP-D-01", system: "Siemens", location: "Fire Pump Room (Diesel Fire Pump PLC)" },
+  // --- 5. FOOD & BEVERAGE ---
+  { tagId: "FB-PLC-PACK", system: "Rockwell", location: "Beverage Bottling Line (Allen-Bradley ControlLogix)" },
+  { tagId: "FB-VFD-MIX", system: "ABB", location: "Food Processing Area (Mixer VFD)" },
+  { tagId: "FB-HMI-01", system: "Siemens", location: "Dairy Plant (Simatic Comfort Panel)" },
 
-  // --- 6. BUILDING MANAGEMENT SYSTEM (BMS) ---
-  { tagId: "DDC-FAHU-01", system: "Schneider", location: "Admin Roof (Fresh Air Handling Unit Controller)" },
-  { tagId: "DDC-AHU-01", system: "Schneider", location: "Admin Level 1 (Air Handling Unit Controller)" },
-  { tagId: "FCU-101", system: "GE", location: "Control Room (Fan Coil Unit)" },
-  { tagId: "BTU-MTR-01", system: "Siemens", location: "Admin Building (BTU Cooling Meter)" },
-
-  // --- 7. HAZARDOUS AREA (EX) & FIELD INSTRUMENTATION ---
-  { tagId: "EX-JB-01", system: "Siemens", location: "Zone 1 Area (EX-d Explosion Proof Junction Box)" },
-  { tagId: "GAS-LEL-01", system: "AVEVA", location: "Generator Yard (Combustible LEL Gas Detector)" },
-  { tagId: "GAS-H2S-01", system: "AVEVA", location: "Wastewater Lift Station (H2S Toxic Gas Detector)" },
-  { tagId: "MOV-01", system: "Siemens", location: "Pipeline (Motor Operated Block Valve)" }
+  // --- 6. METALS & MINERALS ---
+  { tagId: "MM-PLC-CRN", system: "Siemens", location: "Steel Plant (Overhead Crane Controller)" },
+  { tagId: "MM-VFD-CNV", system: "ABB", location: "Mining Facility (Conveyor Belt Drive)" },
+  { tagId: "MM-SCADA-01", system: "GE", location: "Smelting Plant (Proficy HMI/SCADA)" },
+  { tagId: "MM-SWG-01", system: "SIVACON", location: "Heavy Industrial Substation (CUBIC Switchgear)" }
 ];
 
 function populateEquipmentSelect() {
@@ -111,15 +97,14 @@ function populateEquipmentSelect() {
   }
 }
 
-// Run this immediately so the dropdown is populated on page load
+// Fills the dropdown menu immediately on page load
 populateEquipmentSelect();
 
-// Sync to IndexedDB for offline use
 if(typeof OpsDB !== 'undefined' && OpsDB.bulkPutEquipmentTags) {
   OpsDB.bulkPutEquipmentTags(SEED_TAGS).then(populateEquipmentSelect);
 }
 
-// --- Diagnostic assist: KB articles ---
+// --- 3. Troubleshooting Manual Helper ---
 const systemSelect = document.getElementById("system");
 if(systemSelect) systemSelect.addEventListener("change", showKbSuggestions);
 
@@ -137,13 +122,13 @@ async function showKbSuggestions() {
   panel.hidden = false;
 }
 
-// --- ENTERPRISE TICKET SUBMISSION ---
+// --- 4. Save New Ticket (Enterprise Logic) ---
 const submitBtn = document.getElementById("submitTicket");
 if(submitBtn) {
   submitBtn.addEventListener("click", async () => {
     const description = document.getElementById("description").value.trim();
     if (!description) {
-      toast("Description is required", "fault");
+      toast("Description is required");
       return;
     }
 
@@ -164,6 +149,7 @@ if(submitBtn) {
       syncStatus: "queued"
     };
 
+    // Attach strict timers to make sure the problem gets fixed fast
     newTicket = SLAEngine.initializeTicketSLA(newTicket);
 
     if(typeof OpsDB !== 'undefined') {
@@ -178,12 +164,12 @@ if(submitBtn) {
   });
 }
 
-// --- ENTERPRISE TICKET RESOLUTION ---
+// --- 5. Fix the Problem (Requires Proof) ---
 const resolveBtn = document.getElementById('btnResolve');
 if(resolveBtn) {
   resolveBtn.addEventListener('click', async () => {
     if (!currentTicket) {
-      toast("No active ticket selected.", "fault");
+      toast("No active ticket selected.");
       return;
     }
 
@@ -199,12 +185,12 @@ if(resolveBtn) {
       toast("Ticket successfully resolved. RCA data secured.");
       location.hash = "#/my-tickets";
     } catch (error) {
-      toast(error.message, "fault"); 
+      toast(error.message); 
     }
   });
 }
 
-// --- Queue rendering ---
+// --- 6. Show Saved Offline Tickets ---
 async function renderQueue() {
   const list = document.getElementById("ticketList");
   if (!list) return;
@@ -236,7 +222,7 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-// Utility function to mock missing toast UI if not implemented
+// Pop-up message tool
 function toast(msg) {
   alert(msg);
 }
