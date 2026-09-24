@@ -1,46 +1,42 @@
-# 🏭 AGAC Enterprise SCADA SupportDesk
+# 🏭 AGAC SupportDesk
 
-An enterprise-grade, offline-first Progressive Web App (PWA) and backend ticketing ecosystem designed specifically for mission-critical plant floors. 
-
-SupportDesk allows SCADA engineers and operators to log incidents, parse offline troubleshooting manuals, and track strict SLAs from remote substations with zero network coverage. It acts as a standalone, fully compliant Computerized Maintenance Management System (CMMS) featuring bidirectional sync, immutable audit trails, and automated SCADA telemetry ingestion.
+A fast, reliable app for plant workers to report machine problems and read manuals, even when the internet is completely down. When the internet comes back, the app automatically sends all saved work to the main office.
 
 ---
 
-## 🏗️ Enterprise System Architecture
-
-The ecosystem relies on an offline-first browser database (IndexedDB) interacting with a centralized Node.js/PostgreSQL backend via a strict conflict-resolution sync engine.
+## 🏗️ How the System Works
 
 ```mermaid
 graph TD
-    subgraph Plant Floor [Plant Floor / Edge Devices]
-        UI[PWA Web UI / Tablet]
-        IDB[(IndexedDB v2)]
-        SW[Service Worker]
+    subgraph Plant Floor [Plant Floor / Offline Workers]
+        UI[Tablet App]
+        IDB[(Local Storage)]
+        SW[Offline Helper]
         
-        UI <-->|Reads/Writes Offline| IDB
-        UI -->|Registers Sync| SW
+        UI <-->|Saves Work Offline| IDB
+        UI -->|Syncs When Online| SW
     end
 
-    subgraph Central Data Center [Enterprise Backend]
-        API[Sync Engine API]
-        Tele[SCADA Telemetry Webhook]
-        Push[Push Notification Service]
+    subgraph Main Office [Main Office Servers]
+        API[Sync Server]
+        Tele[Machine Alarm System]
+        Push[Alert Sender]
     end
 
-    subgraph Database [PostgreSQL Database]
-        PG[(Tickets, SLA, Audit Logs, RBAC)]
+    subgraph Database [Main Database]
+        PG[(All Saved Tickets & History)]
     end
 
-    subgraph Industrial Control Systems
-        SCADA[Wonderware / GE iFIX Alarm DB]
+    subgraph Machines [Factory Machines]
+        SCADA[Wonderware / GE iFIX]
     end
 
-    SW <-->|Bidirectional JSON Sync| API
-    API <-->|Read/Write| PG
-    SCADA -->|Fires Critical Alarms| Tele
-    Tele -->|Auto-Generates Tickets| PG
+    SW <-->|Sends & Receives Data| API
+    API <-->|Reads & Writes| PG
+    SCADA -->|Sends Broken Machine Alert| Tele
+    Tele -->|Creates a Ticket Automatically| PG
     API -->|Triggers Alert| Push
-    Push -.->|Notifies| UI
+    Push -.->|Pings Tablet| UI
 
     classDef primary fill:#ff7a18,stroke:#a85512,stroke-width:2px,color:#fff;
     classDef secondary fill:#2a323c,stroke:#1e2731,stroke-width:2px,color:#fff;
