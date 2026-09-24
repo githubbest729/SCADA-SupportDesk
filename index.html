@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>AGAC SCADA SupportDesk</title>
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#0E1420" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <span class="brand">AGAC <strong>SupportDesk</strong></span>
+    <span id="netStatus" class="status status--offline">Offline</span>
+  </header>
+
+  <main id="view-intake" class="view">
+    <h1>Log an issue</h1>
+    <p class="lede">Report a plant-floor anomaly. It's saved on this device instantly and syncs to engineering the moment you're back online.</p>
+
+    <label for="equipmentTag">Equipment tag</label>
+    <select id="equipmentTag"></select>
+
+    <label for="system">System</label>
+    <select id="system">
+      <option value="iFIX">GE iFIX</option>
+      <option value="Wonderware">Wonderware</option>
+      <option value="TIA Portal V21">Siemens TIA Portal V21</option>
+    </select>
+
+    <label for="description">What's happening?</label>
+    <textarea id="description" rows="4" placeholder="e.g. Fault LED flashing red on PLC-14, HMI shows communication timeout"></textarea>
+
+    <label for="priority">Priority</label>
+    <select id="priority">
+      <option value="normal">Normal</option>
+      <option value="high">High</option>
+      <option value="critical">Critical — line down</option>
+    </select>
+
+    <label for="photo">Attach a photo of the fault LED (optional)</label>
+    <input type="file" id="photo" accept="image/*" capture="environment" />
+
+    <button id="submitTicket" class="btn btn--primary">Save ticket</button>
+    <p id="submitConfirm" class="confirm" hidden>Saved. It'll sync automatically once you're connected.</p>
+
+    <section id="kbSuggestions" class="kb-panel" hidden>
+      <h2>Relevant troubleshooting</h2>
+      <ul id="kbList"></ul>
+    </section>
+  </main>
+
+  <main id="view-queue" class="view" hidden>
+    <h1>Ticket queue</h1>
+    <ul id="ticketList" class="ticket-list"></ul>
+    <button id="syncNow" class="btn btn--secondary">Sync now</button>
+  </main>
+
+  <nav class="tabbar">
+    <button data-view="view-intake" class="tab tab--active">Log issue</button>
+    <button data-view="view-queue" class="tab">My tickets</button>
+  </nav>
+
+  <script src="js/db.js"></script>
+  <script src="js/clickup-sync.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
