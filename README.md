@@ -79,9 +79,19 @@ stateDiagram-v2
     Resolved --> Closed : Supervisor Verifies Fix
     Closed --> [*]
 
-🗄️ Database Architecture (v2)The local IndexedDB mirrors the central PostgreSQL schema to ensure flawless 1:1 synchronization.Store / TableKeyPurposeticketsticketId (UUID)Full-lifecycle incident records including RCA data, photo references, and active SLA clocks.audit_logauditId (Serial)Append-only ledger tracking every action, user ID, and timestamp for compliance auditing.sla_policiesseverity (1-4)Enterprise response/resolution matrices governing compliance deadlines and escalation chains.sync_conflictsconflictIdQuarantine zone for tickets edited simultaneously by an offline field engineer and the central server.equipment_tagstagIdKnown PLC/HMI/RTU physical assets, indexed by system platform (Wonderware, TIA Portal, iFIX).knowledge_articlesarticleIdCached troubleshooting SOPs pulled via stale-while-revalidate for immediate offline diagnostics.
+🗄️ Database Architecture (v2)
+The local IndexedDB mirrors the central PostgreSQL schema to ensure flawless 1:1 synchronization.
 
-🔀 Bidirectional Sync & Conflict ProtocolWhen an engineer regains Wi-Fi/4G connectivity, the Service Worker executes a background synchronization protocol to merge local changes with the central database safely.
+Store / Table,Key,Purpose
+tickets,ticketId (UUID),"Full-lifecycle incident records including RCA data, photo references, and active SLA clocks."
+audit_log,auditId (Serial),"Append-only ledger tracking every action, user ID, and timestamp for compliance auditing."
+sla_policies,severity (1-4),Enterprise response/resolution matrices governing compliance deadlines and escalation chains.
+sync_conflicts,conflictId,Quarantine zone for tickets edited simultaneously by an offline field engineer and the central server.
+equipment_tags,tagId,"Known PLC/HMI/RTU physical assets, indexed by system platform (Wonderware, TIA Portal, iFIX)."
+knowledge_articles,articleId,Cached troubleshooting SOPs pulled via stale-while-revalidate for immediate offline diagnostics.
+
+🔀 Bidirectional Sync & Conflict Protocol
+When an engineer regains Wi-Fi/4G connectivity, the Service Worker executes a background synchronization protocol to merge local changes with the central database safely.
 
 sequenceDiagram
     participant IDB as Local IndexedDB
