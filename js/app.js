@@ -10,7 +10,7 @@ let currentTicket = null;
 
 // --- 1. Service Worker & Offline Sync ---
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/sw.js").catch(err => console.warn("SW reg failed:", err));
+  navigator.serviceWorker.register("sw.js").catch(err => console.warn("SW reg failed:", err));
 }
 
 function updateNetStatus() {
