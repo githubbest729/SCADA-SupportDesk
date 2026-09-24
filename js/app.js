@@ -236,7 +236,7 @@ window.AgacSync = {
 
     try {
       // REPLACE WITH YOUR ACTUAL GOOGLE APPS SCRIPT WEB APP URL ENDING IN /exec
-      const WEB_APP_URL = "https://script.google.com/macros/s/YOUR_REAL_DEPLOYMENT_ID/exec";
+      const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw-nlqGy2pMXqyrhJg3OZjS3D0oAfeaKbj8OwX0LA9_lHvWUWNVJjrNrGthfP-P5jsuJQ/exec";
 
       for (const ticket of queued) {
         const targetUrl = `${WEB_APP_URL}?data=${encodeURIComponent(JSON.stringify([ticket]))}`;
