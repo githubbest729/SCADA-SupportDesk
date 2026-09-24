@@ -30,10 +30,10 @@ async function requestSync() {
     try {
       await reg.sync.register("sync-ticket-queue");
     } catch {
-      AgacSync.flushQueue().then(renderQueue);
+      if (typeof AgacSync !== 'undefined') AgacSync.flushQueue().then(renderQueue);
     }
   } else {
-    AgacSync.flushQueue().then(renderQueue);
+    if (typeof AgacSync !== 'undefined') AgacSync.flushQueue().then(renderQueue);
   }
 }
 
@@ -49,85 +49,59 @@ document.querySelectorAll(".tab").forEach((btn) => {
 });
 
 /* ==========================================================================
-   100% ENTERPRISE PLANT REGISTRY (UAE / DUBAI INDUSTRIAL MODEL)
-   Comprehensive coverage of Control, Power, DCP, RO, BMS, LSS, and EX systems.
+   100% ENTERPRISE PLANT REGISTRY (AGAC MULTI-VENDOR MODEL)
+   Covers Siemens, Rockwell, Schneider, ABB, GE, and AVEVA platforms
+   across Power, Water, DCP, HVAC, LSS, and EX systems.
    ========================================================================== */
 const SEED_TAGS = [
   // --- 1. CONTROL ROOM, SCADA & OT NETWORK ---
-  { tagId: "SCADA-AOS-01", system: "Wonderware", location: "Main Control Room (App Server Primary)" },
-  { tagId: "SCADA-AOS-02", system: "Wonderware", location: "Main Control Room (App Server Standby)" },
-  { tagId: "HIST-SRV-01", system: "Wonderware", location: "Data Center (Historian Primary)" },
-  { tagId: "HIST-SRV-02", system: "Wonderware", location: "Data Center (Historian Standby)" },
-  { tagId: "EWS-01", system: "TIA Portal V21", location: "Engineering Workstation 1" },
-  { tagId: "OWS-01", system: "Wonderware", location: "Operator Workstation 1" },
-  { tagId: "OWS-02", system: "Wonderware", location: "Operator Workstation 2" },
-  { tagId: "DC-OT-01", system: "Network", location: "Data Center (OT Domain Controller)" },
+  { tagId: "SCADA-AOS-01", system: "AVEVA", location: "Main Control Room (App Server Primary)" },
+  { tagId: "HIST-SRV-01", system: "AVEVA", location: "Data Center (Historian Primary)" },
+  { tagId: "EWS-01", system: "Siemens", location: "Engineering Workstation 1 (TIA Portal V21)" },
+  { tagId: "EWS-02", system: "Rockwell", location: "Engineering Workstation 2 (Studio 5000)" },
+  { tagId: "OWS-01", system: "GE", location: "Operator Workstation 1 (iFIX)" },
   { tagId: "FW-OT-01", system: "Network", location: "Data Center (OT/IT Boundary Firewall)" },
   { tagId: "SW-CORE-A", system: "Network", location: "Data Center (Core Switch A - Fiber Ring)" },
-  { tagId: "SW-CORE-B", system: "Network", location: "Data Center (Core Switch B - Fiber Ring)" },
-  { tagId: "SW-EDGE-CT", system: "Network", location: "Cooling Tower Roof (Hardened Edge Switch)" },
 
   // --- 2. POWER & ELECTRICAL DISTRIBUTION ---
-  { tagId: "GIS-132KV-01", system: "iFIX", location: "Primary Substation (132kV Gas Insulated Switchgear)" },
-  { tagId: "MVSG-11KV-01", system: "iFIX", location: "Substation A (11kV Medium Voltage Switchgear)" },
-  { tagId: "MVSG-11KV-02", system: "iFIX", location: "Substation B (11kV Medium Voltage Switchgear)" },
-  { tagId: "RMU-01", system: "iFIX", location: "Substation A (Ring Main Unit)" },
-  { tagId: "TRF-2500-01", system: "iFIX", location: "Substation A (2500kVA Cast Resin Transformer)" },
-  { tagId: "LVSG-MDB-01", system: "TIA Portal V21", location: "LV Room 1 (Main Distribution Board)" },
-  { tagId: "MCC-CHLR-01", system: "TIA Portal V21", location: "Chiller Plant Room (Motor Control Center)" },
-  { tagId: "UPS-MCR-01", system: "Power", location: "Main Control Room (80kVA Parallel UPS A)" },
-  { tagId: "UPS-MCR-02", system: "Power", location: "Main Control Room (80kVA Parallel UPS B)" },
-  { tagId: "CBS-01", system: "Power", location: "Electrical Room 1 (Central Battery System)" },
-  { tagId: "GEN-DGN-01", system: "TIA Portal V21", location: "Generator Yard (2.5MW Diesel Genset)" },
-  { tagId: "ATS-01", system: "TIA Portal V21", location: "LV Room 1 (Automatic Transfer Switch)" },
+  { tagId: "GIS-132KV-01", system: "ABB", location: "Primary Substation (132kV Switchgear)" },
+  { tagId: "MVSG-11KV-01", system: "Schneider", location: "Substation A (11kV Switchgear)" },
+  { tagId: "TRF-2500-01", system: "Schneider", location: "Substation A (2500kVA Transformer)" },
+  { tagId: "LVSG-MDB-01", system: "Siemens", location: "LV Room 1 (SIVACON Main Distribution Board)" },
+  { tagId: "MCC-CHLR-01", system: "Rockwell", location: "Chiller Plant Room (Motor Control Center)" },
+  { tagId: "UPS-MCR-01", system: "Network", location: "Main Control Room (80kVA Parallel UPS A)" },
+  { tagId: "GEN-DGN-01", system: "Siemens", location: "Generator Yard (2.5MW Diesel Genset)" },
 
   // --- 3. DISTRICT COOLING PLANT (DCP) & HVAC ---
-  { tagId: "PLC-CHLR-01", system: "TIA Portal V21", location: "Chiller Plant (Centrifugal Chiller 1 Controller)" },
-  { tagId: "PLC-CHLR-02", system: "TIA Portal V21", location: "Chiller Plant (Centrifugal Chiller 2 Controller)" },
-  { tagId: "PLC-CHLR-03", system: "TIA Portal V21", location: "Chiller Plant (Centrifugal Chiller 3 Controller)" },
-  { tagId: "VFD-PCHWP-01", system: "TIA Portal V21", location: "Pump Room (Primary Chilled Water Pump 1)" },
-  { tagId: "VFD-SCHWP-01", system: "TIA Portal V21", location: "Pump Room (Secondary Chilled Water Pump 1)" },
-  { tagId: "VFD-CDWP-01", system: "TIA Portal V21", location: "Pump Room (Condenser Water Pump 1)" },
-  { tagId: "PLC-CT-01", system: "TIA Portal V21", location: "Cooling Tower Roof (Tower 1 PLC)" },
-  { tagId: "VFD-CTF-01", system: "TIA Portal V21", location: "Cooling Tower Roof (Tower 1 Fan Drive)" },
-  { tagId: "HEX-01", system: "Wonderware", location: "Plant Room (Plate Heat Exchanger 1)" },
-  { tagId: "TNK-MUW-01", system: "iFIX", location: "Roof (Make-up Water Tank Level Control)" },
-  { tagId: "PLC-DOS-01", system: "TIA Portal V21", location: "Plant Room (Chemical Dosing Skid)" },
+  { tagId: "PLC-CHLR-01", system: "Siemens", location: "Chiller Plant (S7-400H Chiller 1 Controller)" },
+  { tagId: "PLC-CHLR-02", system: "Siemens", location: "Chiller Plant (S7-400H Chiller 2 Controller)" },
+  { tagId: "VFD-PCHWP-01", system: "ABB", location: "Pump Room (Primary Chilled Water Pump Drive)" },
+  { tagId: "PLC-CT-01", system: "Rockwell", location: "Cooling Tower Roof (CompactLogix Tower 1)" },
+  { tagId: "HMI-CT-01", system: "Rockwell", location: "Cooling Tower Roof (PanelView Plus HMI)" },
 
   // --- 4. WATER DESALINATION (RO) & WASTEWATER (TSE) ---
-  { tagId: "PLC-INT-01", system: "TIA Portal V21", location: "Seawater Intake (Intake Pump Station)" },
-  { tagId: "PLC-UF-01", system: "TIA Portal V21", location: "Pre-Treatment (Ultrafiltration Skid 1)" },
-  { tagId: "PLC-RO-01", system: "TIA Portal V21", location: "RO Plant (Reverse Osmosis Train 1)" },
-  { tagId: "VFD-HPP-01", system: "TIA Portal V21", location: "RO Plant (High Pressure Pump Drive 1)" },
-  { tagId: "ERD-01", system: "Wonderware", location: "RO Plant (Energy Recovery Device 1)" },
-  { tagId: "TNK-PRM-01", system: "iFIX", location: "Storage (Permeate Water Tank)" },
-  { tagId: "PLC-TSE-01", system: "TIA Portal V21", location: "Wastewater (Treated Sewage Effluent Lift Station)" },
-  { tagId: "VFD-TSEP-01", system: "TIA Portal V21", location: "Wastewater (TSE Transfer Pump)" },
+  { tagId: "PLC-INT-01", system: "Schneider", location: "Seawater Intake (Modicon M580 Pump Station)" },
+  { tagId: "PLC-RO-01", system: "Siemens", location: "RO Plant (Reverse Osmosis Train 1)" },
+  { tagId: "VFD-HPP-01", system: "ABB", location: "RO Plant (High Pressure Pump Drive 1)" },
+  { tagId: "TNK-PRM-01", system: "GE", location: "Storage (Permeate Water Tank Level Monitor)" },
 
   // --- 5. LIFE SAFETY SYSTEMS (LSS) & FIRE/GAS ---
   { tagId: "FACP-01", system: "LSS", location: "Main Control Room (Main Fire Alarm Control Panel)" },
-  { tagId: "FACP-REP-01", system: "LSS", location: "Security Gatehouse (Repeater Panel)" },
   { tagId: "VESDA-01", system: "LSS", location: "Data Center (Aspirating Smoke Detection)" },
   { tagId: "FM200-01", system: "LSS", location: "Data Center (Gas Suppression Release Panel)" },
-  { tagId: "PAVA-01", system: "LSS", location: "Main Control Room (Public Address / Voice Alarm Rack)" },
-  { tagId: "PMP-FP-E-01", system: "TIA Portal V21", location: "Fire Pump Room (Electric Fire Pump)" },
-  { tagId: "PMP-FP-D-01", system: "TIA Portal V21", location: "Fire Pump Room (Diesel Fire Pump)" },
-  { tagId: "PMP-FP-J-01", system: "TIA Portal V21", location: "Fire Pump Room (Jockey Pump)" },
+  { tagId: "PMP-FP-D-01", system: "Siemens", location: "Fire Pump Room (Diesel Fire Pump PLC)" },
 
   // --- 6. BUILDING MANAGEMENT SYSTEM (BMS) ---
-  { tagId: "DDC-FAHU-01", system: "iFIX", location: "Admin Roof (Fresh Air Handling Unit Controller)" },
-  { tagId: "DDC-AHU-01", system: "iFIX", location: "Admin Level 1 (Air Handling Unit Controller)" },
-  { tagId: "VAV-101", system: "iFIX", location: "Admin Level 1 (Variable Air Volume Box)" },
-  { tagId: "FCU-101", system: "iFIX", location: "Control Room (Fan Coil Unit)" },
-  { tagId: "EXF-01", system: "iFIX", location: "Battery Room (Extract Fan / Hydrogen Purge)" },
-  { tagId: "BTU-MTR-01", system: "iFIX", location: "Admin Building (BTU Cooling Meter)" },
+  { tagId: "DDC-FAHU-01", system: "Schneider", location: "Admin Roof (Fresh Air Handling Unit Controller)" },
+  { tagId: "DDC-AHU-01", system: "Schneider", location: "Admin Level 1 (Air Handling Unit Controller)" },
+  { tagId: "FCU-101", system: "GE", location: "Control Room (Fan Coil Unit)" },
+  { tagId: "BTU-MTR-01", system: "Siemens", location: "Admin Building (BTU Cooling Meter)" },
 
   // --- 7. HAZARDOUS AREA (EX) & FIELD INSTRUMENTATION ---
-  { tagId: "EX-JB-01", system: "TIA Portal V21", location: "Zone 1 Area (EX-d Explosion Proof Junction Box)" },
-  { tagId: "GAS-LEL-01", system: "Wonderware", location: "Generator Yard (Combustible LEL Gas Detector)" },
-  { tagId: "GAS-H2S-01", system: "Wonderware", location: "Wastewater Lift Station (H2S Toxic Gas Detector)" },
-  { tagId: "PLC-FLARE-01", system: "TIA Portal V21", location: "Flare Stack (Ignition Control Panel)" },
-  { tagId: "MOV-01", system: "TIA Portal V21", location: "Pipeline (Motor Operated Block Valve)" }
+  { tagId: "EX-JB-01", system: "Siemens", location: "Zone 1 Area (EX-d Explosion Proof Junction Box)" },
+  { tagId: "GAS-LEL-01", system: "AVEVA", location: "Generator Yard (Combustible LEL Gas Detector)" },
+  { tagId: "GAS-H2S-01", system: "AVEVA", location: "Wastewater Lift Station (H2S Toxic Gas Detector)" },
+  { tagId: "MOV-01", system: "Siemens", location: "Pipeline (Motor Operated Block Valve)" }
 ];
 
 function populateEquipmentSelect() {
@@ -257,9 +231,14 @@ if(syncBtn) syncBtn.addEventListener("click", () => requestSync().then(renderQue
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("message", (event) => {
     if (event.data?.type === "FLUSH_TICKET_QUEUE") {
-      AgacSync.flushQueue().then(renderQueue);
+      if (typeof AgacSync !== 'undefined') AgacSync.flushQueue().then(renderQueue);
     }
   });
+}
+
+// Utility function to mock missing toast UI if not implemented
+function toast(msg) {
+  alert(msg);
 }
 
 updateNetStatus();
