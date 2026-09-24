@@ -2,19 +2,16 @@
    AGAC Enterprise SupportDesk — Application Logic
    ========================================================================== */
 
-// IMPORT THE ENTERPRISE MODULES
 import { SLAEngine } from './sla-engine.js';
 import { TicketLifecycle } from './ticket-lifecycle.js';
 
 let APP_SETTINGS = { engineerName: "Christian Tosita Espinosa", role: "SCADA Engineer" };
-let currentTicket = null; // This will hold the ticket currently being viewed/edited
+let currentTicket = null;
 
-// --- Service worker registration ---
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js");
 }
 
-// --- Network status pill ---
 function updateNetStatus() {
   const el = document.getElementById("netStatus");
   const online = navigator.onLine;
@@ -38,7 +35,6 @@ async function requestSync() {
   }
 }
 
-// --- Tab navigation ---
 document.querySelectorAll(".tab").forEach((btn) => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".tab").forEach((b) => b.classList.remove("tab--active"));
@@ -49,30 +45,59 @@ document.querySelectorAll(".tab").forEach((btn) => {
   });
 });
 
-// --- Populate equipment tags (Comprehensive Enterprise Plant Registry) ---
+/* ==========================================================================
+   100% ENTERPRISE PLANT REGISTRY (UAE / DUBAI INDUSTRIAL MODEL)
+   Covers SCADA, OT Network, District Cooling, Power, and Water Systems.
+   ========================================================================== */
 const SEED_TAGS = [
-  // Servers & Control Room
-  { tagId: "SCADA-SRV-01", system: "Wonderware", location: "Main Control Room" },
-  { tagId: "SCADA-SRV-02", system: "Wonderware", location: "Main Control Room (Standby)" },
-  { tagId: "HIST-DB-01", system: "iFIX", location: "Data Center" },
-  { tagId: "EWS-01", system: "TIA Portal V21", location: "Engineering Workstation" },
+  // --- 1. Control Room & SCADA Infrastructure ---
+  { tagId: "SCADA-AOS-01", system: "Wonderware", location: "Main Control Room (App Server A)" },
+  { tagId: "SCADA-AOS-02", system: "Wonderware", location: "Main Control Room (App Server B)" },
+  { tagId: "HIST-SRV-01", system: "Wonderware", location: "Data Center (Historian Primary)" },
+  { tagId: "HIST-SRV-02", system: "Wonderware", location: "Data Center (Historian Standby)" },
+  { tagId: "SCADA-iFIX-01", system: "iFIX", location: "BMS Control Room (Primary Node)" },
+  { tagId: "EWS-01", system: "TIA Portal V21", location: "Engineering Workstation 1" },
+  { tagId: "OWS-01", system: "Wonderware", location: "Operator Workstation 1" },
+  { tagId: "OWS-02", system: "Wonderware", location: "Operator Workstation 2" },
+  { tagId: "OWS-03", system: "Wonderware", location: "Operator Workstation 3" },
 
-  // Substations & Power Distribution
-  { tagId: "PLC-SUB-A", system: "TIA Portal V21", location: "Substation A" },
-  { tagId: "PLC-SUB-B", system: "TIA Portal V21", location: "Substation B" },
-  { tagId: "RTU-22", system: "TIA Portal V21", location: "Substation C - Remote" },
-  { tagId: "UPS-MCR-01", system: "Power/Network", location: "Main Control Room" },
+  // --- 2. OT Network & Security ---
+  { tagId: "FW-OT-01", system: "Network", location: "Data Center (OT/IT Demarcation Firewall)" },
+  { tagId: "SW-CORE-A", system: "Network", location: "Data Center (Core Switch A)" },
+  { tagId: "SW-CORE-B", system: "Network", location: "Data Center (Core Switch B)" },
+  { tagId: "SW-EDGE-01", system: "Network", location: "Chiller Plant Room (Edge Switch)" },
+  { tagId: "SW-EDGE-02", system: "Network", location: "Substation A (Edge Switch)" },
 
-  // Plant Floor & Process Areas
-  { tagId: "HMI-PACK-01", system: "Wonderware", location: "Packaging Line 1" },
-  { tagId: "HMI-PACK-02", system: "Wonderware", location: "Packaging Line 2" },
-  { tagId: "PLC-PUMP-101", system: "TIA Portal V21", location: "Pump Station Alpha" },
-  { tagId: "PLC-COOL-201", system: "iFIX", location: "Cooling Tower 1" },
-  { tagId: "VFD-CT-201", system: "TIA Portal V21", location: "Cooling Tower 1 (Fan Drive)" },
+  // --- 3. Power Distribution & Substations ---
+  { tagId: "MVSG-01", system: "iFIX", location: "Substation A (11kV Switchgear)" },
+  { tagId: "LVSG-01", system: "TIA Portal V21", location: "Substation A (Low Voltage Switchgear)" },
+  { tagId: "TRF-01", system: "iFIX", location: "Substation A (Transformer 1)" },
+  { tagId: "TRF-02", system: "iFIX", location: "Substation B (Transformer 2)" },
+  { tagId: "UPS-MCR-01", system: "Power/Network", location: "Main Control Room (40kVA UPS)" },
+  { tagId: "GEN-01", system: "TIA Portal V21", location: "Backup Generator Yard (Diesel)" },
 
-  // Network Infrastructure
-  { tagId: "SW-CORE-01", system: "Network", location: "Data Center" },
-  { tagId: "SW-EDGE-14", system: "Network", location: "Substation B" }
+  // --- 4. District Cooling Plant (Chillers & Cooling Towers) ---
+  { tagId: "PLC-CHLR-01", system: "TIA Portal V21", location: "Chiller Plant Room (Chiller 1 Controller)" },
+  { tagId: "PLC-CHLR-02", system: "TIA Portal V21", location: "Chiller Plant Room (Chiller 2 Controller)" },
+  { tagId: "PLC-CHLR-03", system: "TIA Portal V21", location: "Chiller Plant Room (Chiller 3 Controller)" },
+  { tagId: "VFD-CHWP-01", system: "TIA Portal V21", location: "Pump Room (Chilled Water Pump 1 Drive)" },
+  { tagId: "VFD-CHWP-02", system: "TIA Portal V21", location: "Pump Room (Chilled Water Pump 2 Drive)" },
+  { tagId: "VFD-CDWP-01", system: "TIA Portal V21", location: "Pump Room (Condenser Water Pump 1 Drive)" },
+  { tagId: "PLC-CT-01", system: "TIA Portal V21", location: "Cooling Tower Roof (Tower 1 Master)" },
+  { tagId: "PLC-CT-02", system: "TIA Portal V21", location: "Cooling Tower Roof (Tower 2 Master)" },
+  { tagId: "HMI-CHLR-LOCAL", system: "Wonderware", location: "Chiller Plant Room (Local Touch Panel)" },
+
+  // --- 5. Water Treatment & Reverse Osmosis (RO) ---
+  { tagId: "PLC-RO-01", system: "TIA Portal V21", location: "Water Treatment Plant (RO Skid 1)" },
+  { tagId: "PLC-RO-02", system: "TIA Portal V21", location: "Water Treatment Plant (RO Skid 2)" },
+  { tagId: "PLC-DOSING-01", system: "TIA Portal V21", location: "Chemical Dosing Station" },
+  { tagId: "HMI-WTP-01", system: "Wonderware", location: "Water Treatment Plant (Local HMI)" },
+  { tagId: "TSE-TANK-01", system: "iFIX", location: "Treated Sewage Effluent Tank Level Monitor" },
+
+  // --- 6. Facility Management / BMS ---
+  { tagId: "DDC-AHU-01", system: "iFIX", location: "Admin Building Roof (Air Handling Unit)" },
+  { tagId: "DDC-FAHU-01", system: "iFIX", location: "Control Room Roof (Fresh Air Handling Unit)" },
+  { tagId: "FAS-MAIN-01", system: "Network", location: "Main Control Room (Fire Alarm Control Panel)" }
 ];
 
 function populateEquipmentSelect() {
@@ -85,19 +110,9 @@ function populateEquipmentSelect() {
 // Run this immediately so the dropdown is populated on page load
 populateEquipmentSelect();
 
-function populateEquipmentSelect() {
-  const select = document.getElementById("equipmentTag");
-  if(select) {
-    select.innerHTML = SEED_TAGS.map((t) => `<option value="${t.tagId}">${t.tagId} — ${t.location}</option>`).join("");
-  }
-}
-
-// FIX: Run this immediately so the dropdown is never empty!
-populateEquipmentSelect();
-
-// Assuming AgacDb is globally available from your db.js
-if(typeof AgacDb !== 'undefined' && AgacDb.bulkPutEquipmentTags) {
-  AgacDb.bulkPutEquipmentTags(SEED_TAGS).then(populateEquipmentSelect);
+// Sync to IndexedDB for offline use
+if(typeof OpsDB !== 'undefined' && OpsDB.bulkPutEquipmentTags) {
+  OpsDB.bulkPutEquipmentTags(SEED_TAGS).then(populateEquipmentSelect);
 }
 
 // --- Diagnostic assist: KB articles ---
@@ -106,11 +121,13 @@ if(systemSelect) systemSelect.addEventListener("change", showKbSuggestions);
 
 async function showKbSuggestions() {
   const system = document.getElementById("system").value;
-  const articles = await AgacDb.getArticlesForSystem(system);
+  // Fallback to empty array if OpsDB isn't fully defined yet
+  const articles = typeof OpsDB !== 'undefined' && OpsDB.getArticlesForSystem ? await OpsDB.getArticlesForSystem(system) : [];
+  
   const panel = document.getElementById("kbSuggestions");
   const list = document.getElementById("kbList");
-  if (!articles.length) {
-    panel.hidden = true;
+  if (!articles || !articles.length) {
+    if(panel) panel.hidden = true;
     return;
   }
   list.innerHTML = articles.map((a) => `<li>${a.title}</li>`).join("");
@@ -127,12 +144,11 @@ if(submitBtn) {
       return;
     }
 
-    // 1. Build the v2 Enterprise Ticket Base
     let newTicket = {
       ticketId: "TKT-" + Date.now() + "-" + Math.floor(Math.random()*1000),
       localRev: 1,
       serverRev: null,
-      severity: parseInt(document.getElementById("priority").value, 10) || 3, // Must be 1, 2, 3, or 4
+      severity: parseInt(document.getElementById("priority").value, 10) || 3,
       equipmentTagId: document.getElementById("equipmentTag").value,
       system: document.getElementById("system").value,
       summary: description.substring(0, 40) + "...",
@@ -145,11 +161,11 @@ if(submitBtn) {
       syncStatus: "queued"
     };
 
-    // 2. Attach strict SLA Clocks via the Engine
     newTicket = SLAEngine.initializeTicketSLA(newTicket);
 
-    // 3. Save to the new 'tickets' store
-    await OpsDB.put("tickets", newTicket); // Ensure your DB wrapper matches your v2 schema
+    if(typeof OpsDB !== 'undefined') {
+      await OpsDB.put("tickets", newTicket); 
+    }
     
     document.getElementById("description").value = "";
     document.getElementById("submitConfirm").hidden = false;
@@ -172,16 +188,14 @@ if(resolveBtn) {
       const rcaData = {
         rootCause: document.getElementById('rcaCause').value.trim(),
         correctiveAction: document.getElementById('rcaAction').value.trim(),
-        linkedNode: document.getElementById('rcaNodeSelect').value // e.g. "Wonderware-HMI-02"
+        linkedNode: document.getElementById('rcaNodeSelect').value
       };
 
-      // The Lifecycle manager will enforce the RCA rules and pause/resume SLAs
       await TicketLifecycle.transitionStatus(currentTicket, 'Resolved', APP_SETTINGS.engineerName, rcaData);
       
       toast("Ticket successfully resolved. RCA data secured.");
       location.hash = "#/my-tickets";
     } catch (error) {
-      // Catches missing RCA data or invalid state transitions
       toast(error.message, "fault"); 
     }
   });
@@ -190,8 +204,13 @@ if(resolveBtn) {
 // --- Queue rendering ---
 async function renderQueue() {
   const list = document.getElementById("ticketList");
-  const queued = await OpsDB.getAll("tickets"); // Fetching from the new v2 store
-  const pending = queued.filter(t => t.syncStatus === 'queued');
+  if (!list) return;
+  
+  let pending = [];
+  if(typeof OpsDB !== 'undefined') {
+    const queued = await OpsDB.getAll("tickets"); 
+    pending = queued.filter(t => t.syncStatus === 'queued');
+  }
 
   list.innerHTML = pending.length
     ? pending
@@ -206,7 +225,6 @@ async function renderQueue() {
 const syncBtn = document.getElementById("syncNow");
 if(syncBtn) syncBtn.addEventListener("click", () => requestSync().then(renderQueue));
 
-// --- Receive flush requests from the service worker ---
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("message", (event) => {
     if (event.data?.type === "FLUSH_TICKET_QUEUE") {
