@@ -49,76 +49,66 @@ graph TD
 
 ---
 
-## ⚙️ Core Enterprise Pillars
+## ⚙️ Main Features (Explained Simply)
+Two-Way Sync: If you work without internet, the app saves everything. When the internet comes back, it carefully shares your updates with the main office so no work is lost.
 
+Strict Timers: The app puts a countdown clock on every problem to make sure engineers fix things fast.
 
-Bidirectional Offline Sync: Employs a localRev vs. serverRev tracking system. Automatically resolves offline editing conflicts by routing contested tickets to a quarantine queue for dispatcher review.
+Permanent History Book: The app writes down everything anyone does. No one can delete or hide their past mistakes.
 
-Strict SLA Engine: Calculates millisecond-accurate Response and Resolution deadlines based on a predefined Severity Matrix (Sev 1 - Sev 4). Features automated timer pauses and escalation triggers.
+Automatic Machine Alarms: If a machine breaks down, it automatically tells the app and creates a ticket for an engineer.
 
-Immutable Audit Ledger: Database-level enforcement (REVOKE UPDATE, DELETE) ensures every status change, SLA pause, and Root Cause Analysis (RCA) submission is permanently recorded for regulatory compliance.
+User Rules: Engineers, bosses, and clients only see the screens they are allowed to see.
 
-Telemetry Ingestion: Exposes secure webhook endpoints allowing plant-floor alarm servers to automatically generate Severity 1 tickets when critical equipment tags drop offline.
+## 🔄 How a Problem Gets Fixed
 
-Role-Based Access Control (RBAC): Distinct workflows for field_engineer, supervisor, and client.
-
-🔄 Ticket Lifecycle & State Machine
-To enforce compliance, tickets cannot jump states arbitrarily. The database and PWA UI enforce strict pathing, requiring mandatory Root Cause Analysis (RCA) data before a ticket can be resolved, and Supervisor Verification before it can be closed.
+Tickets must follow strict rules. An engineer must explain how they fixed a problem before they can mark it as "Resolved."
 
 stateDiagram-v2
-    [*] --> Open : Telemetry or Manual Log
-    Open --> Assigned : Dispatcher Assigns
+    [*] --> Open : New Problem Found
+    Open --> Assigned : Boss Gives Problem to Engineer
     
-    state "Active Investigation" as Active {
+    state "Fixing the Problem" as Active {
         Assigned --> In_Progress : Engineer Starts Work
-        In_Progress --> Pending_Info : SLA Clock Paused
-        Pending_Info --> In_Progress : SLA Clock Resumed
+        In_Progress --> Pending_Info : Waiting for Help (Timer Paused)
+        Pending_Info --> In_Progress : Got Help (Timer Restarts)
     }
     
-    Active --> Resolved : Requires RCA & Linked SCADA Node
-    Resolved --> Active : Fix Failed (Reopened)
-    Resolved --> Closed : Supervisor Verifies Fix
+    Active --> Resolved : Engineer Explains the Fix
+    Resolved --> Active : Fix Failed (Try Again)
+    Resolved --> Closed : Boss Checks the Work
     Closed --> [*]
 
-🗄️ Database Architecture (v2)
-The local IndexedDB mirrors the central PostgreSQL schema to ensure flawless 1:1 synchronization.
+🗄️ Database TablesThe app uses simple tables to keep track of everything behind the scenes.Table NameWhat it doesticketsSaves the full story of every problem, photos, and fixing times.audit_logThe permanent history book of who did what, and when.sla_policiesThe rules for how fast problems must be fixed.sync_conflictsA holding area for when two people accidentally edit the same ticket at the same time.equipment_tagsA list of all physical machines and screens in the plant.knowledge_articlesThe repair manuals saved directly on the tablet for offline reading.
 
-Store / Table,Key,Purpose
-tickets,ticketId (UUID),"Full-lifecycle incident records including RCA data, photo references, and active SLA clocks."
-audit_log,auditId (Serial),"Append-only ledger tracking every action, user ID, and timestamp for compliance auditing."
-sla_policies,severity (1-4),Enterprise response/resolution matrices governing compliance deadlines and escalation chains.
-sync_conflicts,conflictId,Quarantine zone for tickets edited simultaneously by an offline field engineer and the central server.
-equipment_tags,tagId,"Known PLC/HMI/RTU physical assets, indexed by system platform (Wonderware, TIA Portal, iFIX)."
-knowledge_articles,articleId,Cached troubleshooting SOPs pulled via stale-while-revalidate for immediate offline diagnostics.
-
-🔀 Bidirectional Sync & Conflict Protocol
+🔀 What Happens When the Internet Comes Back?
 When an engineer regains Wi-Fi/4G connectivity, the Service Worker executes a background synchronization protocol to merge local changes with the central database safely.
 
 sequenceDiagram
-    participant IDB as Local IndexedDB
-    participant SW as Service Worker
-    participant API as Enterprise Backend
-    participant PG as PostgreSQL DB
+    participant IDB as Tablet Storage
+    participant SW as Offline Helper
+    participant API as Main Office Server
+    participant PG as Main Database
 
-    Note over IDB,PG: Connection Restored
-    SW->>IDB: 1. Read queued offline tickets
-    SW->>API: 2. PULL: Fetch server tickets since lastSync
-    API->>PG: Query latest revisions
-    PG-->>API: Return server updates
-    API-->>SW: Server payload
+    Note over IDB,PG: Internet is Connected Again!
+    SW->>IDB: 1. Read offline work
+    SW->>API: 2. Ask office for any new updates
+    API->>PG: Check database
+    PG-->>API: Return new updates
+    API-->>SW: Send to tablet
     
-    alt Local & Server match or Local is newer
-        SW->>IDB: 3. Merge server changes safely
-    else Conflict (Both edited simultaneously)
-        SW->>IDB: Route to 'sync_conflicts' table
-        SW->>UI: Trigger "Merge Resolution" Dialog
+    alt No clashes found
+        SW->>IDB: 3. Save office updates to tablet
+    else Two people edited the same thing!
+        SW->>IDB: Send to 'Holding Area'
+        SW->>UI: Ask the user how to fix it
     end
 
-    SW->>API: 4. PUSH: Send local queued updates
-    API->>PG: Commit validated changes
-    PG-->>API: 200 OK + New serverRev
-    API-->>SW: Confirm Sync
-    SW->>IDB: 5. Mark as 'synced', update serverRev
+    SW->>API: 4. Send the tablet's offline work to the office
+    API->>PG: Save it safely
+    PG-->>API: Success!
+    API-->>SW: Confirm it's saved
+    SW->>IDB: 5. Mark tablet work as 'synced'
 
 🛠️ Local Development & Deployment
 Prerequisites
