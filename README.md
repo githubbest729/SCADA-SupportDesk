@@ -72,3 +72,14 @@ To test offline behavior: open the app, load it once, then use your browser's De
 - [ ] Push notification backend (VAPID keys, subscription storage)
 - [ ] Operator auth/session (currently `operatorId` is hardcoded in `js/app.js`)
 - [ ] Final branded icon and `og-image.png` assets
+
+### Enterprise IndexedDB Schema (js/db.js - v2)
+
+| Store | Key | Purpose |
+| :--- | :--- | :--- |
+| `tickets` | `ticketId` (UUID) | Full-lifecycle ticket records including RCA data and strict SLA clocks (`responseDeadline`, `resolveDeadline`). |
+| `audit_log` | `auditId` (Auto) | Append-only, immutable ledger tracking every status change, SLA pause, and escalation for regulatory compliance. |
+| `sla_policies` | `severity` (1-4) | Enterprise response and resolution matrices governing ticket deadlines and escalation chains. |
+| `sync_conflicts` | `conflictId` | Quarantine zone for tickets edited simultaneously by an offline engineer and the central server. |
+| `equipment_tags` | `tagId` | Known PLC/HMI/RTU tags, indexed by system (Wonderware, TIA Portal, iFIX) and location. |
+| `knowledge_articles` | `articleId` | Cached troubleshooting SOPs pulled via stale-while-revalidate for offline diagnostics. |
