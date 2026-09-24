@@ -277,7 +277,7 @@ async function renderQueue() {
   }
 }
 
-// --- 8. Google Sheets Cloud Sync Engine ---
+// --- Google Sheets Cloud Sync Engine (GET-based to bypass CORS & Redirect bugs) ---
 window.AgacSync = {
   async flushQueue() {
     if (typeof OpsDB === 'undefined') {
@@ -297,15 +297,13 @@ window.AgacSync = {
     alert(`Syncing ${queued.length} ticket(s) to your Google Sheet...`);
 
     try {
-      // TODO: Replace with your actual Google Apps Script Web App URL from Step 2
-      const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw-nlqGy2pMXqyrhJg3OZjS3D0oAfeaKbj8OwX0LA9_lHvWUWNVJjrNrGthfP-P5jsuJQ/exec";
+      // PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE:
+      const WEB_APP_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE";
 
-      await fetch(WEB_APP_URL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(queued)
-      });
+      // Send data via URL parameters to avoid POST redirection issues
+      const targetUrl = `${WEB_APP_URL}?data=${encodeURIComponent(JSON.stringify(queued))}`;
+
+      await fetch(targetUrl, { method: "GET" });
 
       // Mark local tickets as safely synced
       for (const ticket of queued) {
