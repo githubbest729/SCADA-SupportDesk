@@ -48,7 +48,7 @@ document.querySelectorAll(".tab").forEach((btn) => {
 });
 
 /* ==========================================================================
-   100% REAL-WORLD AGAC PORTFOLIO REGISTRY
+   100% REAL-WORLD AGAC PORTFOLIO REGISTRY (UAE / DUBAI INDUSTRIAL MODEL)
    Based strictly on actual AGAC industries: Oil & Gas, District Cooling, 
    Water/Wastewater, Infrastructure, Metals & Minerals, Food & Beverages.
    Partners: Siemens, ABB, Schneider Electric, Rockwell, GE, SIVACON, CUBIC.
@@ -104,7 +104,23 @@ if(typeof OpsDB !== 'undefined' && OpsDB.bulkPutEquipmentTags) {
   OpsDB.bulkPutEquipmentTags(SEED_TAGS).then(populateEquipmentSelect);
 }
 
-// --- 3. Troubleshooting Manual Helper ---
+// --- 3. Smart Fault Preset Selector Logic ---
+const faultPresetSelect = document.getElementById("faultPreset");
+const customContainer = document.getElementById("customDescriptionContainer");
+
+if (faultPresetSelect) {
+  faultPresetSelect.addEventListener("change", (e) => {
+    if (e.target.value === "OTHERS") {
+      customContainer.style.display = "block";
+      const customInput = document.getElementById("customDescription");
+      if(customInput) customInput.value = "";
+    } else {
+      customContainer.style.display = "none";
+    }
+  });
+}
+
+// --- 4. Troubleshooting Manual Helper ---
 const systemSelect = document.getElementById("system");
 if(systemSelect) systemSelect.addEventListener("change", showKbSuggestions);
 
@@ -122,13 +138,24 @@ async function showKbSuggestions() {
   panel.hidden = false;
 }
 
-// --- 4. Save New Ticket (Enterprise Logic) ---
+// --- 5. Save New Ticket (Enterprise Logic with Presets & Custom Support) ---
 const submitBtn = document.getElementById("submitTicket");
 if(submitBtn) {
   submitBtn.addEventListener("click", async () => {
-    const description = document.getElementById("description").value.trim();
+    const presetSelect = document.getElementById("faultPreset");
+    const presetVal = presetSelect ? presetSelect.value : "";
+    
+    if (!presetVal) {
+      toast("Please select a fault or issue.");
+      return;
+    }
+
+    const description = presetVal === "OTHERS" 
+      ? document.getElementById("customDescription").value.trim() 
+      : presetVal;
+
     if (!description) {
-      toast("Description is required");
+      toast("Please enter a custom description for 'Others'.");
       return;
     }
 
@@ -156,7 +183,12 @@ if(submitBtn) {
       await OpsDB.put("tickets", newTicket); 
     }
     
-    document.getElementById("description").value = "";
+    // Reset form fields
+    if(presetSelect) presetSelect.selectedIndex = 0;
+    const customInput = document.getElementById("customDescription");
+    if(customInput) customInput.value = "";
+    if(customContainer) customContainer.style.display = "none";
+
     document.getElementById("submitConfirm").hidden = false;
     setTimeout(() => (document.getElementById("submitConfirm").hidden = true), 3000);
 
@@ -164,7 +196,7 @@ if(submitBtn) {
   });
 }
 
-// --- 5. Fix the Problem (Requires Proof) ---
+// --- 6. Fix the Problem (Requires Proof) ---
 const resolveBtn = document.getElementById('btnResolve');
 if(resolveBtn) {
   resolveBtn.addEventListener('click', async () => {
@@ -190,7 +222,7 @@ if(resolveBtn) {
   });
 }
 
-// --- 6. Show Saved Offline Tickets ---
+// --- 7. Show Saved Offline Tickets ---
 async function renderQueue() {
   const list = document.getElementById("ticketList");
   if (!list) return;
