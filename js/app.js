@@ -49,12 +49,41 @@ document.querySelectorAll(".tab").forEach((btn) => {
   });
 });
 
-// --- Populate equipment tags ---
+// --- Populate equipment tags (Comprehensive Enterprise Plant Registry) ---
 const SEED_TAGS = [
-  { tagId: "PLC-14", system: "iFIX", location: "Substation B" },
-  { tagId: "HMI-07", system: "Wonderware", location: "Substation B" },
-  { tagId: "RTU-22", system: "TIA Portal V21", location: "Substation C" },
+  // Servers & Control Room
+  { tagId: "SCADA-SRV-01", system: "Wonderware", location: "Main Control Room" },
+  { tagId: "SCADA-SRV-02", system: "Wonderware", location: "Main Control Room (Standby)" },
+  { tagId: "HIST-DB-01", system: "iFIX", location: "Data Center" },
+  { tagId: "EWS-01", system: "TIA Portal V21", location: "Engineering Workstation" },
+
+  // Substations & Power Distribution
+  { tagId: "PLC-SUB-A", system: "TIA Portal V21", location: "Substation A" },
+  { tagId: "PLC-SUB-B", system: "TIA Portal V21", location: "Substation B" },
+  { tagId: "RTU-22", system: "TIA Portal V21", location: "Substation C - Remote" },
+  { tagId: "UPS-MCR-01", system: "Power/Network", location: "Main Control Room" },
+
+  // Plant Floor & Process Areas
+  { tagId: "HMI-PACK-01", system: "Wonderware", location: "Packaging Line 1" },
+  { tagId: "HMI-PACK-02", system: "Wonderware", location: "Packaging Line 2" },
+  { tagId: "PLC-PUMP-101", system: "TIA Portal V21", location: "Pump Station Alpha" },
+  { tagId: "PLC-COOL-201", system: "iFIX", location: "Cooling Tower 1" },
+  { tagId: "VFD-CT-201", system: "TIA Portal V21", location: "Cooling Tower 1 (Fan Drive)" },
+
+  // Network Infrastructure
+  { tagId: "SW-CORE-01", system: "Network", location: "Data Center" },
+  { tagId: "SW-EDGE-14", system: "Network", location: "Substation B" }
 ];
+
+function populateEquipmentSelect() {
+  const select = document.getElementById("equipmentTag");
+  if(select) {
+    select.innerHTML = SEED_TAGS.map((t) => `<option value="${t.tagId}">${t.tagId} — ${t.location}</option>`).join("");
+  }
+}
+
+// Run this immediately so the dropdown is populated on page load
+populateEquipmentSelect();
 
 function populateEquipmentSelect() {
   const select = document.getElementById("equipmentTag");
