@@ -72,9 +72,10 @@
     </select>
 
     <!-- FIXED: Changed id="description" to id="customDescription" to prevent duplicate ID bugs -->
-    <div id="customDescriptionContainer" style="display: none; margin-bottom: 8px;">
-      <textarea id="customDescription" rows="4" placeholder="Type custom fault description here..."></textarea>
-    </div>
+  <div id="customDescriptionContainer" style="display: none; margin-bottom: 8px;">
+  <label for="customDescription">Custom Issue Description</label>
+  <textarea id="customDescription" name="customDescription" rows="4" placeholder="Type custom fault description here..."></textarea>
+</div>
     
     <label for="priority">Severity / SLA Priority</label>    
     <select id="priority">      
