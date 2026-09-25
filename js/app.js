@@ -694,3 +694,147 @@ function toast(msg) {
 
 updateNetStatus();
 renderDashboard();
+
+/* ==========================================================================
+   11. SYNC CENTER MODAL LOGIC
+   ========================================================================== */
+const navSyncBtn = document.getElementById("navSyncBtn");
+const syncModal = document.getElementById("syncModal");
+const closeSyncModal = document.getElementById("closeSyncModal");
+const modalSyncNowBtn = document.getElementById("modalSyncNowBtn");
+
+// Open Modal
+if (navSyncBtn && syncModal) {
+  navSyncBtn.addEventListener("click", async () => {
+    syncModal.hidden = false;
+    
+    // Update Modal Data
+    const isOnline = navigator.onLine;
+    const banner = document.getElementById("syncBanner");
+    const bannerText = document.getElementById("syncBannerText");
+    
+    if (banner && bannerText) {
+      if (isOnline) {
+        banner.className = "sync-status-banner online-banner";
+        bannerText.textContent = "System Online - Ready for API Sync";
+      } else {
+        banner.className = "sync-status-banner offline-banner";
+        bannerText.textContent = "System Offline - Local Mode Active";
+      }
+    }
+
+    // Count Queued Tickets
+    if (typeof OpsDB !== 'undefined' && OpsDB.getAll) {
+      const tickets = await OpsDB.getAll("tickets") || [];
+      const queuedCount = tickets.filter(t => t.syncStatus === 'queued').length;
+      const modalQueueCount = document.getElementById("modalQueueCount");
+      if (modalQueueCount) modalQueueCount.textContent = queuedCount;
+      
+      // Simulate conflicts if there are queued items, just for the enterprise demo
+      const modalConflictCount = document.getElementById("modalConflictCount");
+      if (modalConflictCount) {
+         modalConflictCount.textContent = queuedCount > 2 ? "1" : "0";
+         if (queuedCount > 2) modalConflictCount.style.color = "var(--high)";
+      }
+    }
+  });
+}
+
+// Close Modal
+if (closeSyncModal && syncModal) {
+  closeSyncModal.addEventListener("click", () => {
+    syncModal.hidden = true;
+  });
+}
+
+// Force Sync Button inside Modal
+if (modalSyncNowBtn) {
+  modalSyncNowBtn.addEventListener("click", async () => {
+    if (!navigator.onLine) {
+      toast("Cannot sync while offline.");
+      return;
+    }
+    
+    modalSyncNowBtn.textContent = "Synchronizing...";
+    modalSyncNowBtn.disabled = true;
+    
+    try {
+      await AgacSync.flushQueue();
+      syncModal.hidden = true; // Close modal on success
+    } catch (err) {
+      console.error("Sync error:", err);
+      toast("Sync process encountered an error.");
+    } finally {
+      modalSyncNowBtn.textContent = "Force Sync to Central API";
+      modalSyncNowBtn.disabled = false;
+    }
+  });
+}
+
+/* ==========================================================================
+   12. SCADA ALARM INGESTION SIMULATOR (Enterprise Demo Mode)
+   ========================================================================== */
+async function simulateScadaAlarm() {
+  if (typeof OpsDB === 'undefined' || !OpsDB.put) return;
+  
+  // Only inject demo alarms if the database is completely empty
+  const existing = await OpsDB.getAll("tickets");
+  if (existing && existing.length > 0) return; 
+
+  console.log("Initializing SCADA Simulation Data...");
+
+  const demoAlarms = [
+    { tag: "DCP-PLC-01", impact: "High", urgency: "High", desc: "Chiller PLC communication timeout / heartbeat failure." },
+    { tag: "DCP-VFD-01", impact: "Medium", urgency: "High", desc: "Chilled water pump VFD tripped on thermal overload." },
+    { tag: "WTP-PLC-01", impact: "High", urgency: "Medium", desc: "Lift station reached critical high level. Pumps not auto-starting." }
+  ];
+
+  for (let i = 0; i < demoAlarms.length; i++) {
+    const alarm = demoAlarms[i];
+    const asset = findAssetByTag(alarm.tag);
+    const priority = computePriorityFromMatrix(alarm.impact, alarm.urgency);
+    
+    // Stagger creation times so they look organic
+    const creationTime = Date.now() - (Math.random() * 10000000); 
+
+    let newTicket = {
+      ticketId: "SCADA-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
+      localRev: 1,
+      serverRev: null,
+      impact: alarm.impact, 
+      urgency: alarm.urgency, 
+      priority: priority,
+      severity: { P1: 1, P2: 2, P3: 3, P4: 4 }[priority],
+      asset: asset
+        ? { site: asset.site, area: asset.area, equipment: asset.equipment, component: asset.component, tag: asset.tagId, system: asset.system }
+        : null,
+      equipmentTagId: alarm.tag,
+      system: asset ? asset.system : "Unknown",
+      faultCategory: "Auto-Ingested Alarm", 
+      alarmCode: "SCADA-GEN", 
+      description: alarm.desc,
+      summary: alarm.desc.substring(0, 40) + "...",
+      status: i === 0 ? "New" : "Assigned", // Make the first one New, others Assigned
+      assignedTo: i === 0 ? null : "Auto-Dispatcher",
+      createdBy: "SCADA System Auto-Event",
+      createdAt: creationTime,
+      updatedAt: creationTime,
+      respondedAt: i === 0 ? null : creationTime + 120000,
+      syncStatus: "queued",
+      auditTrail: [{ ts: creationTime, message: `SCADA Auto-Event created (${priority})` }],
+    };
+    
+    await OpsDB.put("tickets", newTicket);
+  }
+  
+  // Refresh the UI to show the new simulated alarms
+  renderDashboard();
+  renderQueue();
+}
+
+// Fire the simulator on load
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', simulateScadaAlarm);
+} else {
+  simulateScadaAlarm();
+}
