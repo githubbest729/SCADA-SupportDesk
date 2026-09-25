@@ -16,8 +16,56 @@
     <span id="netStatus" class="status status--offline">Offline</span>  
   </header>
 
+  <!-- DASHBOARD VIEW -->
+  <main id="view-dashboard" class="view">
+    <h1>Operations overview</h1>
+    <p class="lede">Live status across plant-floor tickets, synced automatically as tickets are saved, resolved, or pushed centrally.</p>
+
+    <section class="kpi-row">
+      <div class="kpi-card">
+        <span class="kpi-value" id="kpiOpen">0</span>
+        <span class="kpi-label">Total Open</span>
+      </div>
+      <div class="kpi-card kpi-card--critical">
+        <span class="kpi-value" id="kpiCritical">0</span>
+        <span class="kpi-label">Critical (Sev 1–2)</span>
+      </div>
+      <div class="kpi-card kpi-card--warning">
+        <span class="kpi-value" id="kpiSlaRisk">0</span>
+        <span class="kpi-label">SLA at Risk</span>
+      </div>
+      <div class="kpi-card kpi-card--success">
+        <span class="kpi-value" id="kpiResolvedToday">0</span>
+        <span class="kpi-label">Resolved Today</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Faults by system platform</h2>
+      <div id="systemBreakdown" class="breakdown-list"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Recent incidents</h2>
+        <div id="syncWidget" class="sync-widget">
+          <span id="dashNetStatus" class="status status--offline">Offline</span>
+          <span id="dashQueueCount" class="queue-count">0 queued</span>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table class="incidents-table">
+          <thead>
+            <tr><th>Ticket</th><th>Equipment</th><th>Issue</th><th>Severity</th><th>Age</th><th>Status</th></tr>
+          </thead>
+          <tbody id="incidentsTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
   <!-- INTAKE VIEW -->
-  <main id="view-intake" class="view">    
+  <main id="view-intake" class="view" hidden>    
     <h1>Log an issue</h1>    
     <p class="lede">Report a plant-floor anomaly. It's saved locally and syncs to the central database when online.</p>
 
@@ -98,7 +146,7 @@
 
   <!-- QUEUE VIEW -->
   <main id="view-queue" class="view" hidden>    
-    <h1>Ticket queue</h1>    
+    <h1>Tickets</h1>    
     <ul id="ticketList" class="ticket-list"></ul>    
     <button id="syncNow" class="btn btn--secondary">Sync now</button>  
   </main>
@@ -121,8 +169,9 @@
   </main>
 
   <nav class="tabbar">    
-    <button data-view="view-intake" class="tab tab--active">Log issue</button>    
-    <button data-view="view-queue" class="tab">My tickets</button>  
+    <button data-view="view-dashboard" class="tab tab--active">Dashboard</button>
+    <button data-view="view-intake" class="tab">Log Issue</button>    
+    <button data-view="view-queue" class="tab">Tickets</button>  
     <button data-view="view-resolve" class="tab">Resolve</button>  
   </nav>
 
