@@ -69,49 +69,35 @@
     <h1>Log an issue</h1>    
     <p class="lede">Identify the asset, describe the fault, and set impact/urgency. Priority is calculated automatically.</p>
 
-    <h2 style="font-size:14px;color:var(--text-dim);margin:18px 0 4px;">Asset identification</h2>
-    <label for="assetSite">Site</label>
-    <select id="assetSite" name="assetSite"></select>
+    <!-- Asset identification (Cleaned up duplicate blocks) -->
+    <fieldset style="border: none; padding: 0; margin-bottom: 20px;">
+      <legend style="display: none;">Asset identification</legend>
+      <h2 style="font-size:14px;color:var(--text-dim);margin:18px 0 4px;">Asset identification</h2>
+      
+      <label for="siteSelect">Site</label>
+      <select id="siteSelect" name="siteSelect">
+        <option value="" selected disabled>-- Select site --</option>
+      </select>
 
-    <label for="assetArea">Area</label>
-    <select id="assetArea" name="assetArea" disabled></select>
+      <label for="areaSelect">Area</label>
+      <select id="areaSelect" name="areaSelect" disabled>
+        <option value="" selected disabled>-- Select area --</option>
+      </select>
 
-    <label for="assetEquipment">Equipment</label>
-    <select id="assetEquipment" name="assetEquipment" disabled></select>
+      <label for="equipmentSelect">Equipment</label>
+      <select id="equipmentSelect" name="equipmentSelect" disabled>
+        <option value="" selected disabled>-- Select equipment --</option>
+      </select>
 
-    <label for="assetComponent">Component</label>
-    <select id="assetComponent" name="assetComponent" disabled></select>
+      <label for="componentSelect">Component</label>
+      <select id="componentSelect" name="componentSelect" disabled>
+        <option value="" selected disabled>-- Select component --</option>
+      </select>
 
-    <p class="asset-picker-hint">Resolved tag: <strong id="resolvedTagDisplay">—</strong></p>
-
-    <!-- Asset identification -->
-<fieldset style="border: none; padding: 0; margin-bottom: 20px;">
-  <legend style="display: none;">Asset identification</legend>
-  
-  <label for="siteSelect">Site</label>
-  <select id="siteSelect" name="siteSelect">
-    <option value="" selected disabled>-- Select site --</option>
-  </select>
-
-  <label for="areaSelect">Area</label>
-  <select id="areaSelect" name="areaSelect" disabled>
-    <option value="" selected disabled>-- Select area --</option>
-  </select>
-
-  <label for="equipmentSelect">Equipment</label>
-  <select id="equipmentSelect" name="equipmentSelect" disabled>
-    <option value="" selected disabled>-- Select equipment --</option>
-  </select>
-
-  <label for="componentSelect">Component</label>
-  <select id="componentSelect" name="componentSelect" disabled>
-    <option value="" selected disabled>-- Select component --</option>
-  </select>
-
-  <p style="font-size: 14px; color: var(--text-dim); margin-top: 8px;">
-    Resolved tag: <strong id="resolvedTagDisplay" style="color: var(--accent);">—</strong>
-  </p>
-</fieldset>
+      <p style="font-size: 14px; color: var(--text-dim); margin-top: 8px;">
+        Resolved tag: <strong id="resolvedTagDisplay" style="color: var(--accent);">—</strong>
+      </p>
+    </fieldset>
 
     <h2 style="font-size:14px;color:var(--text-dim);margin:18px 0 4px;">Fault context</h2>
     <label for="faultCategory">Fault category</label>
