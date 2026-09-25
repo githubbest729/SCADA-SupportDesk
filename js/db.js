@@ -3,7 +3,7 @@
    ========================================================================== */
 
 const DB_NAME = "AgacSupportDeskDB";
-const DB_VERSION = 2; // Upgraded to match enterprise v2 schema
+const DB_VERSION = 3; // V3: added "priority" index for the new Impact/Urgency engine
 
 window.OpsDB = {
   db: null,
@@ -15,13 +15,24 @@ window.OpsDB = {
 
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
+        const tx = event.target.transaction;
 
         // 1. Full-lifecycle tickets store (Offline queue & active records)
+        let ticketStore;
         if (!db.objectStoreNames.contains("tickets")) {
-          const ticketStore = db.createObjectStore("tickets", { keyPath: "ticketId" });
+          ticketStore = db.createObjectStore("tickets", { keyPath: "ticketId" });
           ticketStore.createIndex("status", "status", { unique: false });
           ticketStore.createIndex("syncStatus", "syncStatus", { unique: false });
           ticketStore.createIndex("equipmentTagId", "equipmentTagId", { unique: false });
+        } else {
+          ticketStore = tx.objectStore("tickets");
+        }
+        // V3: index new tickets' computed priority (P1–P4) for future filtering/reporting.
+        // Existing tickets without a .priority field simply won't appear in that index
+        // until they're re-saved — dashboard/detail rendering already falls back to
+        // computing priority on the fly, so nothing breaks in the meantime.
+        if (!ticketStore.indexNames.contains("priority")) {
+          ticketStore.createIndex("priority", "priority", { unique: false });
         }
 
         // 2. Equipment registry store
