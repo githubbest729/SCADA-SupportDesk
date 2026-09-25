@@ -69,7 +69,7 @@
     <h1>Log an issue</h1>    
     <p class="lede">Identify the asset, describe the fault, and set impact/urgency. Priority is calculated automatically.</p>
 
-    <!-- Asset identification (Cleaned up duplicate blocks) -->
+    <!-- Asset identification -->
     <fieldset style="border: none; padding: 0; margin-bottom: 20px;">
       <legend style="display: none;">Asset identification</legend>
       <h2 style="font-size:14px;color:var(--text-dim);margin:18px 0 4px;">Asset identification</h2>
@@ -100,6 +100,42 @@
     </fieldset>
 
     <h2 style="font-size:14px;color:var(--text-dim);margin:18px 0 4px;">Fault context</h2>
+    
+    <!-- RESTORED: AGAC Smart Fault Preset Dropdown -->
+    <label for="faultPreset">What's happening? (Select common issue or type custom)</label>
+    <select id="faultPreset" name="faultPreset" style="margin-bottom: 12px;">
+      <option value="" selected disabled>-- Select common plant fault or issue --</option>
+      <optgroup label="District Cooling / HVAC">
+        <option value="PLC communication timeout / heartbeat failure">PLC communication timeout / heartbeat failure</option>
+        <option value="Chilled water pump VFD trip / overload">Chilled water pump VFD trip / overload</option>
+        <option value="SCADA Historian logging gap / timestamp drift">SCADA Historian logging gap / timestamp drift</option>
+      </optgroup>
+      <optgroup label="Water & Wastewater">
+        <option value="Lift station high level alarm">Lift station high level alarm</option>
+        <option value="RO high pressure pump vibration fault">RO high pressure pump vibration fault</option>
+        <option value="Dosing pump chemical flow error">Dosing pump chemical flow error</option>
+      </optgroup>
+      <optgroup label="Oil & Gas">
+        <option value="ESD system partial stroke test failure">ESD system partial stroke test failure</option>
+        <option value="Pipeline SCADA telemetry loss">Pipeline SCADA telemetry loss</option>
+        <option value="Wellhead control panel pressure drop">Wellhead control panel pressure drop</option>
+      </optgroup>
+      <optgroup label="Infrastructure & Automation">
+        <option value="Main distribution board (MDB) incomer breaker trip">Main distribution board (MDB) incomer breaker trip</option>
+        <option value="BMS controller network offline">BMS controller network offline</option>
+        <option value="UPS battery fault / low voltage alarm">UPS battery fault / low voltage alarm</option>
+      </optgroup>
+      <optgroup label="Food & Beverage">
+        <option value="Packaging line PLC sequence halt">Packaging line PLC sequence halt</option>
+        <option value="Mixer VFD overcurrent fault">Mixer VFD overcurrent fault</option>
+      </optgroup>
+      <optgroup label="Metals & Minerals">
+        <option value="Overhead crane PLC interlock triggered">Overhead crane PLC interlock triggered</option>
+        <option value="Conveyor drive thermal overload">Conveyor drive thermal overload</option>
+      </optgroup>
+      <option value="OTHERS">Custom / Other issue...</option>
+    </select>
+
     <label for="faultCategory">Fault category</label>
     <select id="faultCategory" name="faultCategory">
       <option value="Communication / Network">Communication / Network</option>
