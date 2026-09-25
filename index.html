@@ -64,73 +64,63 @@
     </section>
   </main>
 
-  <!-- INTAKE VIEW -->
+  <!-- INTAKE VIEW — Structured Incident Workflow -->
   <main id="view-intake" class="view" hidden>    
     <h1>Log an issue</h1>    
-    <p class="lede">Report a plant-floor anomaly. It's saved locally and syncs to the central database when online.</p>
+    <p class="lede">Identify the asset, describe the fault, and set impact/urgency. Priority is calculated automatically.</p>
 
-    <label for="equipmentTag">Equipment tag</label>    
-    <select id="equipmentTag" name="equipmentTag"></select>
+    <h2 style="font-size:14px;color:var(--text-dim);margin:18px 0 4px;">Asset identification</h2>
+    <label for="assetSite">Site</label>
+    <select id="assetSite" name="assetSite"></select>
 
-    <label for="system">System Platform</label>    
-    <select id="system" name="system">      
-      <option value="Siemens">Siemens (PLC, WinCC, TIA Portal)</option>      
-      <option value="ABB">ABB (Control Systems, Drives)</option>      
-      <option value="Schneider">Schneider Electric (EcoStruxure, PLCs)</option>      
-      <option value="Rockwell">Rockwell Automation (Allen-Bradley, FactoryTalk)</option>      
-      <option value="GE">GE (Proficy, iFIX)</option>      
-      <option value="SIVACON">SIVACON / CUBIC / ArcSeis (Switchgear)</option>    
+    <label for="assetArea">Area</label>
+    <select id="assetArea" name="assetArea" disabled></select>
+
+    <label for="assetEquipment">Equipment</label>
+    <select id="assetEquipment" name="assetEquipment" disabled></select>
+
+    <label for="assetComponent">Component</label>
+    <select id="assetComponent" name="assetComponent" disabled></select>
+
+    <p class="asset-picker-hint">Resolved tag: <strong id="resolvedTagDisplay">—</strong></p>
+
+    <h2 style="font-size:14px;color:var(--text-dim);margin:18px 0 4px;">Fault context</h2>
+    <label for="faultCategory">Fault category</label>
+    <select id="faultCategory" name="faultCategory">
+      <option value="Communication / Network">Communication / Network</option>
+      <option value="Electrical / Power">Electrical / Power</option>
+      <option value="Mechanical">Mechanical</option>
+      <option value="Instrumentation">Instrumentation</option>
+      <option value="Software / HMI">Software / HMI</option>
+      <option value="Safety / Fire & Gas">Safety / Fire &amp; Gas</option>
+      <option value="Other">Other</option>
     </select>
 
-    <label for="faultPreset">What's happening? (Select common issue or type custom)</label>    
-    <select id="faultPreset" name="faultPreset" style="margin-bottom: 8px;">
-      <option value="" disabled selected>-- Select common plant fault or issue --</option>
-      
-      <!-- Communication & Network -->
-      <option value="PLC communication timeout / heartbeat failure">PLC communication timeout / heartbeat failure</option>
-      <option value="HMI to PLC Ethernet ring fault (MRP / DLR error)">HMI to PLC Ethernet ring fault (MRP / DLR error)</option>
-      <option value="SCADA Historian logging gap / timestamp drift">SCADA Historian logging gap / timestamp drift</option>
-      <option value="Fiber optic link down on core switch">Fiber optic link down on core switch</option>
+    <label for="alarmCode">Alarm code (optional)</label>
+    <input type="text" id="alarmCode" name="alarmCode" placeholder="e.g. E-204" />
 
-      <!-- Electrical & Power -->
-      <option value="UPS battery fault / low voltage alarm">UPS battery fault / low voltage alarm</option>
-      <option value="Main distribution board (MDB) incomer breaker trip">Main distribution board (MDB) incomer breaker trip</option>
-      <option value="Diesel generator failure to auto-start on mains loss">Diesel generator failure to auto-start on mains loss</option>
-      <option value="VFD drive fault / overcurrent trip">VFD drive fault / overcurrent trip</option>
+    <label for="description">Description</label>
+    <textarea id="description" name="description" rows="4" placeholder="Describe the fault, symptoms, and any readings observed..."></textarea>
 
-      <!-- District Cooling (DCP) & HVAC -->
-      <option value="Chiller high discharge pressure trip">Chiller high discharge pressure trip</option>
-      <option value="Chilled water differential pressure low">Chilled water differential pressure low</option>
-      <option value="Cooling tower fan vibration high alarm">Cooling tower fan vibration high alarm</option>
-      <option value="Primary chilled water pump interlock failure">Primary chilled water pump interlock failure</option>
-
-      <!-- Water Desalination & RO -->
-      <option value="RO high-pressure pump high vibration / seal leak">RO high-pressure pump high vibration / seal leak</option>
-      <option value="Ultrafiltration (UF) transmembrane pressure high">Ultrafiltration (UF) transmembrane pressure high</option>
-      <option value="Chemical dosing tank level low-low interlock">Chemical dosing tank level low-low interlock</option>
-      <option value="Permeate conductivity high alarm">Permeate conductivity high alarm</option>
-
-      <!-- Life Safety & F&G -->
-      <option value="Fire Alarm Control Panel (FACP) trouble signal">Fire Alarm Control Panel (FACP) trouble signal</option>
-      <option value="Gas detector (LEL / H2S) fault or pre-alarm">Gas detector (LEL / H2S) fault or pre-alarm</option>
-      <option value="VESDA aspirating smoke detector airflow fault">VESDA aspirating smoke detector airflow fault</option>
-
-      <!-- Custom Option -->
-      <option value="OTHERS">Others (Type custom description below)...</option>
+    <h2 style="font-size:14px;color:var(--text-dim);margin:18px 0 4px;">Priority engine</h2>
+    <label for="impactSelect">Impact</label>
+    <select id="impactSelect" name="impactSelect">
+      <option value="High">High — production/safety impact</option>
+      <option value="Medium" selected>Medium — partial/localized impact</option>
+      <option value="Low">Low — no immediate impact</option>
     </select>
 
-    <!-- Custom Description Container (Toggled via JS when 'Others' is selected) -->
-    <div id="customDescriptionContainer" style="display: none; margin-bottom: 8px;">
-      <label for="customDescription">Custom Issue Description</label>
-      <textarea id="customDescription" name="customDescription" rows="4" placeholder="Type custom fault description here..."></textarea>
+    <label for="urgencySelect">Urgency</label>
+    <select id="urgencySelect" name="urgencySelect">
+      <option value="High">High — needs immediate attention</option>
+      <option value="Medium" selected>Medium — same-shift attention</option>
+      <option value="Low">Low — can be scheduled</option>
+    </select>
+
+    <div class="priority-preview">
+      <span>Calculated priority:</span>
+      <span id="priorityPreviewBadge" class="pill pill--p3">P3</span>
     </div>
-    
-    <label for="priority">Severity / SLA Priority</label>    
-    <select id="priority" name="priority">      
-      <option value="4">Severity 4 — Informational</option>      
-      <option value="3" selected>Severity 3 — Minor Impact</option>      
-      <option value="1">Severity 1 — Critical Outage</option>    
-    </select>
 
     <label for="photo">Attach a photo of the fault LED (optional)</label>    
     <input type="file" id="photo" name="photo" accept="image/*" capture="environment" />
@@ -151,7 +141,56 @@
     <button id="syncNow" class="btn btn--secondary">Sync now</button>  
   </main>
 
-  <!-- RCA RESOLUTION VIEW -->
+  <!-- TICKET DETAIL VIEW — opened by clicking a ticket in the queue, not a nav tab -->
+  <main id="view-detail" class="view" hidden>
+    <button id="btnBackToTickets" class="btn btn--secondary" style="margin-bottom:12px;max-width:180px;">← Back to Tickets</button>
+
+    <div class="detail-header">
+      <div>
+        <span class="detail-ticket-id" id="detailTicketId">TKT-…</span>
+        <h1 id="detailEquipmentTag" style="margin:4px 0 0;">—</h1>
+      </div>
+      <span id="detailPriorityBadge" class="pill pill--p3">P3</span>
+    </div>
+
+    <section class="panel">
+      <h2>Incident lifecycle</h2>
+      <div class="status-stepper" id="statusStepper"></div>
+      <div class="stepper-actions" id="stepperActions"></div>
+    </section>
+
+    <section class="panel">
+      <h2>SLA timers</h2>
+      <div class="sla-timer-row">
+        <div class="sla-timer">
+          <div class="sla-timer-label"><span>Response time</span><span id="responseSlaText">—</span></div>
+          <div class="sla-track"><div id="responseSlaFill" class="sla-fill"></div></div>
+        </div>
+        <div class="sla-timer">
+          <div class="sla-timer-label"><span>Resolution time</span><span id="resolveSlaText">—</span></div>
+          <div class="sla-track"><div id="resolveSlaFill" class="sla-fill"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Activity / audit trail</h2>
+      <ul class="audit-trail" id="auditTrailList"></ul>
+    </section>
+
+    <section class="panel">
+      <h2>Root Cause Analysis</h2>
+      <label for="detailRcaCause">Root cause</label>
+      <textarea id="detailRcaCause" rows="2" placeholder="e.g. Fiber optic switch failure"></textarea>
+      <label for="detailRcaAction">Corrective action taken</label>
+      <textarea id="detailRcaAction" rows="2" placeholder="e.g. Replaced switch and verified loopback"></textarea>
+      <label for="detailRcaNode">Linked SCADA node</label>
+      <input type="text" id="detailRcaNode" placeholder="e.g. Substation-B-Switch-01" />
+      <button id="detailBtnResolve" class="btn btn--primary">Mark Resolved & Secure RCA</button>
+    </section>
+  </main>
+
+  <!-- RCA RESOLUTION VIEW (legacy quick-resolve path, unchanged, still reachable from the nav) -->
   <main id="view-resolve" class="view" hidden>
     <h1>Resolve Ticket</h1>
     <p class="lede">Root Cause Analysis (RCA) is mandatory before closing an active incident.</p>
