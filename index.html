@@ -274,15 +274,66 @@
     
     <button id="btnResolve" class="btn btn--primary">Mark Resolved & Secure RCA</button>
   </main>
-
-  <nav class="tabbar">    
-    <button data-view="view-dashboard" class="tab tab--active">Dashboard</button>
-    <button data-view="view-intake" class="tab">Log Issue</button>    
-    <button data-view="view-queue" class="tab">Tickets</button>  
-    <button data-view="view-resolve" class="tab">Resolve</button>  
+  
+<!-- ASSET REGISTRY VIEW -->
+  <main id="view-assets" class="view" hidden>
+    <h1>Asset Registry</h1>
+    <p class="lede">Browse plant equipment, historical reliability, and documentation.</p>
+    
+    <section class="panel" style="text-align: center; padding: 40px 20px;">
+      <span style="font-size: 40px; display: block; margin-bottom: 12px;">🏗️</span>
+      <h3 style="margin: 0 0 8px 0;">Asset Database Syncing...</h3>
+      <p class="lede" style="margin: 0;">Enterprise SCADA equipment tags are currently being indexed for this facility.</p>
+    </section>
+  </main>
+  
+<nav class="tabbar">    
+    <button data-view="view-dashboard" class="tab tab--active">
+      <span class="tab-icon">📊</span> Operations
+    </button>
+    <button data-view="view-intake" class="tab">
+      <span class="tab-icon">📝</span> Log Issue
+    </button>    
+    <button data-view="view-queue" class="tab">
+      <span class="tab-icon">📋</span> Incidents
+    </button>  
+    <button data-view="view-assets" class="tab">
+      <span class="tab-icon">⚙️</span> Assets
+    </button>  
   </nav>
+  
 
   <script src="js/db.js"></script>  
   <script type="module" src="js/app.js"></script>
+
+  <!-- INTERACTIVE SYNC CONTROL CENTER (Overlay Modal) -->
+  <div id="syncModal" class="modal-overlay" hidden>
+    <div class="modal-content panel">
+      <div class="modal-header">
+        <h2>Connection & Sync Status</h2>
+        <button id="closeSyncModal" class="btn-close">×</button>
+      </div>
+      
+      <div class="sync-status-banner offline-banner" id="syncBanner">
+        <span class="status-dot"></span> <span id="syncBannerText">System Offline - Local Mode Active</span>
+      </div>
+
+      <div class="sync-stats">
+        <div class="sync-stat">
+          <span class="sync-stat-value" id="modalQueueCount">0</span>
+          <span class="sync-stat-label">Pending Tickets</span>
+        </div>
+        <div class="sync-stat">
+          <span class="sync-stat-value" id="modalConflictCount">0</span>
+          <span class="sync-stat-label">Conflicts</span>
+        </div>
+      </div>
+
+      <div class="sync-actions">
+        <p class="lede" style="font-size: 13px;">Last successful sync: <strong id="lastSyncTime">Never</strong></p>
+        <button id="modalSyncNowBtn" class="btn btn--primary">Force Sync to Central API</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
