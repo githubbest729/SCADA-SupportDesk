@@ -130,6 +130,7 @@ textarea { resize: vertical; }
 .kpi-card {
   background: var(--panel);
   border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
   border-radius: 10px;
   padding: 14px;
   display: flex;
@@ -138,8 +139,11 @@ textarea { resize: vertical; }
 }
 .kpi-value { font-size: 26px; font-weight: 700; }
 .kpi-label { font-size: 12px; color: var(--text-dim); }
+.kpi-card--critical { border-left-color: var(--critical); }
 .kpi-card--critical .kpi-value { color: var(--critical); }
+.kpi-card--warning { border-left-color: var(--high); }
 .kpi-card--warning .kpi-value { color: var(--high); }
+.kpi-card--success { border-left-color: var(--ok); }
 .kpi-card--success .kpi-value { color: var(--ok); }
 
 .panel {
@@ -153,24 +157,52 @@ textarea { resize: vertical; }
 .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .panel-header h2 { margin: 0; }
 
+/* System health bars */
 .breakdown-list { display: grid; gap: 10px; }
 .breakdown-row { display: grid; grid-template-columns: 110px 1fr 28px; align-items: center; gap: 10px; font-size: 13px; }
 .breakdown-track { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; height: 10px; overflow: hidden; }
-.breakdown-fill { height: 100%; background: var(--accent); border-radius: 6px; }
+.breakdown-fill { height: 100%; background: var(--accent); border-radius: 6px; transition: width 0.3s ease; }
 .breakdown-count { text-align: right; color: var(--text-dim); font-size: 12px; }
 
 .sync-widget { display: flex; align-items: center; gap: 8px; }
 .queue-count { font-size: 12px; color: var(--text-dim); background: var(--bg); border: 1px solid var(--border); border-radius: 20px; padding: 4px 10px; }
 
-.table-scroll { overflow-x: auto; }
-.incidents-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 520px; }
-.incidents-table th {
+/* Enterprise incidents table: sticky header, truncation, pills */
+.table-scroll { overflow: auto; max-height: 420px; border-radius: 8px; }
+.incidents-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 620px; }
+.incidents-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   text-align: left; color: var(--text-dim); font-weight: 600; font-size: 11px;
-  text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 10px; border-bottom: 1px solid var(--border);
+  text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 10px;
+  background: var(--panel); border-bottom: 1px solid var(--border);
 }
 .incidents-table td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-.incidents-table tr:last-child td { border-bottom: none; }
+.incidents-table tbody tr:last-child td { border-bottom: none; }
+.incidents-table tbody tr:hover { background: rgba(63, 169, 245, 0.05); }
+.incidents-table td.truncate, .incidents-table td.col-equipment {
+  max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.incidents-table td.col-ticket { font-variant-numeric: tabular-nums; color: var(--text-dim); font-size: 12px; }
+.incidents-table td.col-age { text-align: right; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 
+/* Priority pills: P1 critical -> P4 informational */
+.pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; border: 1px solid; white-space: nowrap; }
+.pill--p1 { color: var(--critical); border-color: var(--critical); background: rgba(245, 87, 63, 0.1); }
+.pill--p2 { color: var(--high); border-color: var(--high); background: rgba(245, 169, 63, 0.1); }
+.pill--p3 { color: var(--accent); border-color: var(--accent); background: rgba(63, 169, 245, 0.1); }
+.pill--p4 { color: var(--text-dim); border-color: var(--border); background: rgba(139, 151, 175, 0.08); }
+
+/* Status pills: full lifecycle */
+.pill--status-open { color: var(--accent); border-color: var(--accent); background: rgba(63, 169, 245, 0.1); }
+.pill--status-assigned { color: var(--accent); border-color: var(--accent); background: rgba(63, 169, 245, 0.1); }
+.pill--status-inprogress { color: var(--high); border-color: var(--high); background: rgba(245, 169, 63, 0.1); }
+.pill--status-pending { color: var(--high); border-color: var(--high); background: rgba(245, 169, 63, 0.08); }
+.pill--status-resolved { color: var(--ok); border-color: var(--ok); background: rgba(63, 245, 147, 0.1); }
+.pill--status-closed { color: var(--text-dim); border-color: var(--border); background: rgba(139, 151, 175, 0.08); }
+
+/* Kept for any legacy markup still referencing sev-badge */
 .sev-badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; border: 1px solid; }
 .sev-badge--1 { color: var(--critical); border-color: var(--critical); }
 .sev-badge--2 { color: var(--high); border-color: var(--high); }
