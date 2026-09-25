@@ -1,9 +1,10 @@
 /* ==========================================================================
    AGAC Enterprise SupportDesk — Hardened Application Logic (Self-Contained)
+   V3: structured intake, Impact x Urgency priority engine, Ticket Detail view
    ========================================================================== */
 
 let APP_SETTINGS = { engineerName: "Christian Espinosa", role: "SCADA Engineer" };
-let currentTicket = null;
+let currentTicket = null; // shared by the legacy Resolve tab AND the new Detail view
 
 // --- 1. Service Worker & Offline Sync ---
 if ("serviceWorker" in navigator) {
@@ -52,198 +53,303 @@ document.querySelectorAll(".tab").forEach((btn) => {
   });
 });
 
-/* ==========================================================================
-   ASSET HIERARCHY REGISTRY — Site -> Area -> System -> Equipment -> Tag
-   Replaces the old flat SEED_TAGS list. tagId is kept as the select value so
-   it still matches whatever's already stored under equipmentTagId in OpsDB.
-   ========================================================================== */
-const ASSET_REGISTRY = [
-  // --- DISTRICT COOLING PLANTS ---
-  { tagId: "DCP-PLC-01", site: "District Cooling Plant A", area: "Chiller Plant Room", system: "Siemens", equipment: "CH-01" },
-  { tagId: "DCP-VFD-01", site: "District Cooling Plant A", area: "Pump Room", system: "ABB", equipment: "CHWP-01" },
-  { tagId: "DCP-SCADA-01", site: "District Cooling Plant B", area: "Control Room", system: "GE", equipment: "SCADA-SRV-01" },
-  { tagId: "DCP-MCC-01", site: "District Cooling Plant B", area: "Electrical Room", system: "SIVACON", equipment: "MCC-01" },
-
-  // --- WATER & WASTEWATER ---
-  { tagId: "WTP-PLC-01", site: "Water Treatment Plant", area: "Pump Station", system: "Schneider", equipment: "M580-01" },
-  { tagId: "RO-PLC-01", site: "Desalination RO Plant", area: "RO Train 1", system: "Siemens", equipment: "RO-TRAIN-01" },
-  { tagId: "RO-VFD-01", site: "Desalination RO Plant", area: "High Pressure Pump Room", system: "ABB", equipment: "HPP-01" },
-  { tagId: "TSE-RTU-01", site: "Wastewater Lift Station", area: "Lift Station", system: "Rockwell", equipment: "RTU-01" },
-
-  // --- OIL & GAS ---
-  { tagId: "OG-PLC-ESD", site: "Onshore Processing Facility", area: "ESD System", system: "Siemens", equipment: "ESD-CTRL-01" },
-  { tagId: "OG-HMI-01", site: "Wellhead Control Panel", area: "Wellhead", system: "Rockwell", equipment: "HMI-01" },
-  { tagId: "OG-SCADA-01", site: "Pipeline Monitoring", area: "Control Center", system: "Schneider", equipment: "CLEARSCADA-01" },
-  { tagId: "OG-SWG-01", site: "Refinery Substation", area: "Switchgear Room", system: "SIVACON", equipment: "SWG-01" },
-
-  // --- INFRASTRUCTURE & AUTOMATION ---
-  { tagId: "INF-DCS-01", site: "Airport Facility Management", area: "DCS Node Room", system: "ABB", equipment: "800xA-01" },
-  { tagId: "INF-MDB-01", site: "Utility Substation", area: "Main Distribution", system: "SIVACON", equipment: "MDB-01" },
-  { tagId: "INF-MCC-01", site: "Tunnel Ventilation System", area: "Ventilation Plant Room", system: "SIVACON", equipment: "CUBIC-MCC-01" },
-  { tagId: "INF-BMS-01", site: "Commercial Tower", area: "BMS Control Room", system: "Schneider", equipment: "BMS-CTRL-01" },
-
-  // --- FOOD & BEVERAGE ---
-  { tagId: "FB-PLC-PACK", site: "Beverage Bottling Line", area: "Packaging Line", system: "Rockwell", equipment: "CLX-PACK-01" },
-  { tagId: "FB-VFD-MIX", site: "Food Processing Area", area: "Mixing Line", system: "ABB", equipment: "MIXER-01" },
-  { tagId: "FB-HMI-01", site: "Dairy Plant", area: "Process Floor", system: "Siemens", equipment: "HMI-DAIRY-01" },
-
-  // --- METALS & MINERALS ---
-  { tagId: "MM-PLC-CRN", site: "Steel Plant", area: "Overhead Crane Bay", system: "Siemens", equipment: "CRANE-01" },
-  { tagId: "MM-VFD-CNV", site: "Mining Facility", area: "Conveyor Line", system: "ABB", equipment: "CONV-01" },
-  { tagId: "MM-SCADA-01", site: "Smelting Plant", area: "Control Room", system: "GE", equipment: "PROFICY-01" },
-  { tagId: "MM-SWG-01", site: "Heavy Industrial Substation", area: "Switchgear Room", system: "SIVACON", equipment: "CUBIC-SWG-01" },
-];
-
-// Backward-compat alias: legacy tickets/code that reference SEED_TAGS keep working.
-const SEED_TAGS = ASSET_REGISTRY.map((a) => ({ tagId: a.tagId, system: a.system, location: `${a.site} (${a.area})` }));
-
-function findAsset(tagId) {
-  return ASSET_REGISTRY.find((a) => a.tagId === tagId) || null;
+function showView(viewId) {
+  document.querySelectorAll(".tab").forEach((b) => b.classList.remove("tab--active"));
+  document.querySelectorAll(".view").forEach((v) => (v.hidden = true));
+  const el = document.getElementById(viewId);
+  if (el) el.hidden = false;
 }
 
 /* ==========================================================================
-   PRIORITY & SLA ENGINE
-   Priority (P1–P4) is urgency/response-time; severity is impact. The intake
-   form still only captures one field ("severity"), so priority is derived
-   from it for now — swap priorityFromSeverity() for a real form field later.
+   ASSET HIERARCHY REGISTRY — Site -> Area -> Equipment -> Component -> Tag
+   Each entry currently maps to exactly one component; the cascade logic
+   below is generic, so adding multiple components per equipment later
+   (e.g. a second PLC on the same skid) needs no structural changes.
    ========================================================================== */
+const ASSET_REGISTRY = [
+  { tagId: "DCP-PLC-01", site: "District Cooling Plant A", area: "Chiller Plant Room", equipment: "CH-01", component: "PLC", system: "Siemens" },
+  { tagId: "DCP-VFD-01", site: "District Cooling Plant A", area: "Pump Room", equipment: "CHWP-01", component: "VFD", system: "ABB" },
+  { tagId: "DCP-SCADA-01", site: "District Cooling Plant B", area: "Control Room", equipment: "SCADA-SRV-01", component: "SCADA Server", system: "GE" },
+  { tagId: "DCP-MCC-01", site: "District Cooling Plant B", area: "Electrical Room", equipment: "MCC-01", component: "MCC", system: "SIVACON" },
+
+  { tagId: "WTP-PLC-01", site: "Water Treatment Plant", area: "Pump Station", equipment: "M580-01", component: "PLC", system: "Schneider" },
+  { tagId: "RO-PLC-01", site: "Desalination RO Plant", area: "RO Train 1", equipment: "RO-TRAIN-01", component: "PLC", system: "Siemens" },
+  { tagId: "RO-VFD-01", site: "Desalination RO Plant", area: "High Pressure Pump Room", equipment: "HPP-01", component: "VFD", system: "ABB" },
+  { tagId: "TSE-RTU-01", site: "Wastewater Lift Station", area: "Lift Station", equipment: "RTU-01", component: "RTU", system: "Rockwell" },
+
+  { tagId: "OG-PLC-ESD", site: "Onshore Processing Facility", area: "ESD System", equipment: "ESD-CTRL-01", component: "ESD Controller", system: "Siemens" },
+  { tagId: "OG-HMI-01", site: "Wellhead Control Panel", area: "Wellhead", equipment: "HMI-01", component: "HMI", system: "Rockwell" },
+  { tagId: "OG-SCADA-01", site: "Pipeline Monitoring", area: "Control Center", equipment: "CLEARSCADA-01", component: "SCADA", system: "Schneider" },
+  { tagId: "OG-SWG-01", site: "Refinery Substation", area: "Switchgear Room", equipment: "SWG-01", component: "Switchgear", system: "SIVACON" },
+
+  { tagId: "INF-DCS-01", site: "Airport Facility Management", area: "DCS Node Room", equipment: "800xA-01", component: "DCS Node", system: "ABB" },
+  { tagId: "INF-MDB-01", site: "Utility Substation", area: "Main Distribution", equipment: "MDB-01", component: "MDB", system: "SIVACON" },
+  { tagId: "INF-MCC-01", site: "Tunnel Ventilation System", area: "Ventilation Plant Room", equipment: "CUBIC-MCC-01", component: "MCC", system: "SIVACON" },
+  { tagId: "INF-BMS-01", site: "Commercial Tower", area: "BMS Control Room", equipment: "BMS-CTRL-01", component: "BMS Controller", system: "Schneider" },
+
+  { tagId: "FB-PLC-PACK", site: "Beverage Bottling Line", area: "Packaging Line", equipment: "CLX-PACK-01", component: "PLC", system: "Rockwell" },
+  { tagId: "FB-VFD-MIX", site: "Food Processing Area", area: "Mixing Line", equipment: "MIXER-01", component: "VFD", system: "ABB" },
+  { tagId: "FB-HMI-01", site: "Dairy Plant", area: "Process Floor", equipment: "HMI-DAIRY-01", component: "HMI", system: "Siemens" },
+
+  { tagId: "MM-PLC-CRN", site: "Steel Plant", area: "Overhead Crane Bay", equipment: "CRANE-01", component: "PLC", system: "Siemens" },
+  { tagId: "MM-VFD-CNV", site: "Mining Facility", area: "Conveyor Line", equipment: "CONV-01", component: "VFD", system: "ABB" },
+  { tagId: "MM-SCADA-01", site: "Smelting Plant", area: "Control Room", equipment: "PROFICY-01", component: "SCADA/HMI", system: "GE" },
+  { tagId: "MM-SWG-01", site: "Heavy Industrial Substation", area: "Switchgear Room", equipment: "CUBIC-SWG-01", component: "Switchgear", system: "SIVACON" },
+];
+
+// Backward-compat alias for any old code path still referencing SEED_TAGS.
+const SEED_TAGS = ASSET_REGISTRY.map((a) => ({ tagId: a.tagId, system: a.system, location: `${a.site} (${a.area})` }));
+
+function uniq(arr) { return [...new Set(arr)]; }
+function getSites() { return uniq(ASSET_REGISTRY.map((a) => a.site)); }
+function getAreas(site) { return uniq(ASSET_REGISTRY.filter((a) => a.site === site).map((a) => a.area)); }
+function getEquipment(site, area) { return uniq(ASSET_REGISTRY.filter((a) => a.site === site && a.area === area).map((a) => a.equipment)); }
+function getComponents(site, area, equipment) { return uniq(ASSET_REGISTRY.filter((a) => a.site === site && a.area === area && a.equipment === equipment).map((a) => a.component)); }
+function resolveAsset(site, area, equipment, component) {
+  return ASSET_REGISTRY.find((a) => a.site === site && a.area === area && a.equipment === equipment && a.component === component) || null;
+}
+function findAssetByTag(tagId) {
+  return ASSET_REGISTRY.find((a) => a.tagId === tagId) || null;
+}
+
+// --- Cascading dropdown wiring for the intake form ---
+function fillSelect(select, options, placeholder) {
+  select.innerHTML = (placeholder ? [`<option value="" disabled selected>${placeholder}</option>`] : [])
+    .concat(options.map((o) => `<option value="${o}">${o}</option>`)).join("");
+}
+
+function initAssetCascade() {
+  const siteSel = document.getElementById("assetSite");
+  const areaSel = document.getElementById("assetArea");
+  const equipSel = document.getElementById("assetEquipment");
+  const compSel = document.getElementById("assetComponent");
+  const tagDisplay = document.getElementById("resolvedTagDisplay");
+  if (!siteSel) return; // not on this view
+
+  fillSelect(siteSel, getSites(), "-- Select site --");
+
+  siteSel.addEventListener("change", () => {
+    fillSelect(areaSel, getAreas(siteSel.value), "-- Select area --");
+    areaSel.disabled = false;
+    equipSel.innerHTML = ""; equipSel.disabled = true;
+    compSel.innerHTML = ""; compSel.disabled = true;
+    tagDisplay.textContent = "—";
+  });
+
+  areaSel.addEventListener("change", () => {
+    fillSelect(equipSel, getEquipment(siteSel.value, areaSel.value), "-- Select equipment --");
+    equipSel.disabled = false;
+    compSel.innerHTML = ""; compSel.disabled = true;
+    tagDisplay.textContent = "—";
+  });
+
+  equipSel.addEventListener("change", () => {
+    fillSelect(compSel, getComponents(siteSel.value, areaSel.value, equipSel.value), "-- Select component --");
+    compSel.disabled = false;
+    tagDisplay.textContent = "—";
+  });
+
+  compSel.addEventListener("change", () => {
+    const asset = resolveAsset(siteSel.value, areaSel.value, equipSel.value, compSel.value);
+    tagDisplay.textContent = asset ? asset.tagId : "—";
+  });
+}
+
+/* ==========================================================================
+   PRIORITY ENGINE — Impact x Urgency -> P1..P4 (standard reduced 3x3 grid)
+   ========================================================================== */
+const PRIORITY_MATRIX = {
+  High:   { High: "P1", Medium: "P2", Low: "P3" },
+  Medium: { High: "P2", Medium: "P3", Low: "P4" },
+  Low:    { High: "P3", Medium: "P4", Low: "P4" },
+};
 const SLA_TARGETS = {
-  P1: { label: "Critical", responseMins: 15, resolveMins: 4 * 60 },      // 4hr resolution
+  P1: { label: "Critical", responseMins: 15, resolveMins: 4 * 60 },
   P2: { label: "High", responseMins: 30, resolveMins: 8 * 60 },
-  P3: { label: "Medium", responseMins: 120, resolveMins: 2 * 24 * 60 },  // 2 days
+  P3: { label: "Medium", responseMins: 120, resolveMins: 2 * 24 * 60 },
   P4: { label: "Low", responseMins: 480, resolveMins: 5 * 24 * 60 },
 };
 
+function computePriorityFromMatrix(impact, urgency) {
+  return (PRIORITY_MATRIX[impact] && PRIORITY_MATRIX[impact][urgency]) || "P3";
+}
+// Legacy fallback for tickets saved before V3 that only have a numeric "severity".
 function priorityFromSeverity(sev) {
   const map = { 1: "P1", 2: "P2", 3: "P3", 4: "P4" };
   return map[Number(sev)] || "P3";
 }
-
-// Tolerates legacy tickets (no .priority, only .severity) and new ones alike.
+// Tolerates all three ticket shapes: V3 (.priority set directly), V2 (impact/urgency
+// present but priority not cached), and V1 (severity only).
 function getTicketPriority(t) {
-  return t.priority || priorityFromSeverity(t.severity);
+  if (t.priority) return t.priority;
+  if (t.impact && t.urgency) return computePriorityFromMatrix(t.impact, t.urgency);
+  return priorityFromSeverity(t.severity);
 }
 
-// Returns { state: "Within SLA" | "At Risk" | "Breached", remainingMs, deadline }
-function computeSlaStatus(ticket) {
+function updatePriorityPreview() {
+  const impactSel = document.getElementById("impactSelect");
+  const urgencySel = document.getElementById("urgencySelect");
+  const badge = document.getElementById("priorityPreviewBadge");
+  if (!impactSel || !urgencySel || !badge) return;
+  const p = computePriorityFromMatrix(impactSel.value, urgencySel.value);
+  badge.textContent = `${p} · ${SLA_TARGETS[p].label}`;
+  badge.className = `pill pill--${p.toLowerCase()}`;
+}
+
+/* ==========================================================================
+   SLA ENGINE — response & resolution progress against P1–P4 targets
+   ========================================================================== */
+function computeResponseSla(ticket) {
   const priority = getTicketPriority(ticket);
   const targets = SLA_TARGETS[priority] || SLA_TARGETS.P3;
-  const deadline = ticket.createdAt + targets.resolveMins * 60000;
+  const targetMs = targets.responseMins * 60000;
+  const deadline = ticket.createdAt + targetMs;
+  const done = !!ticket.respondedAt;
+  const referenceTime = done ? ticket.respondedAt : Date.now();
+  const remainingMs = deadline - referenceTime;
+  let state;
+  if (done) state = remainingMs >= 0 ? "Within SLA" : "Breached";
+  else if (remainingMs <= 0) state = "Breached";
+  else if (remainingMs <= targetMs * 0.2) state = "At Risk";
+  else state = "Within SLA";
+  const pct = Math.min(100, Math.max(0, ((referenceTime - ticket.createdAt) / targetMs) * 100));
+  return { state, pct, remainingMs, done };
+}
+function computeResolutionSla(ticket) {
+  const priority = getTicketPriority(ticket);
+  const targets = SLA_TARGETS[priority] || SLA_TARGETS.P3;
+  const targetMs = targets.resolveMins * 60000;
+  const deadline = ticket.createdAt + targetMs;
   const isClosed = ticket.status === "Resolved" || ticket.status === "Closed";
   const referenceTime = isClosed ? (ticket.updatedAt || Date.now()) : Date.now();
   const remainingMs = deadline - referenceTime;
-
-  if (isClosed) {
-    return { state: remainingMs >= 0 ? "Within SLA" : "Breached", remainingMs, deadline };
-  }
-  if (remainingMs <= 0) return { state: "Breached", remainingMs, deadline };
-  const atRiskThresholdMs = targets.resolveMins * 60000 * 0.2; // last 20% of the window
-  if (remainingMs <= atRiskThresholdMs) return { state: "At Risk", remainingMs, deadline };
-  return { state: "Within SLA", remainingMs, deadline };
+  let state;
+  if (isClosed) state = remainingMs >= 0 ? "Within SLA" : "Breached";
+  else if (remainingMs <= 0) state = "Breached";
+  else if (remainingMs <= targetMs * 0.2) state = "At Risk";
+  else state = "Within SLA";
+  const pct = Math.min(100, Math.max(0, ((referenceTime - ticket.createdAt) / targetMs) * 100));
+  return { state, pct, remainingMs, done: isClosed };
+}
+function slaFillClass(state) {
+  if (state === "Breached") return "sla-fill--critical";
+  if (state === "At Risk") return "sla-fill--warning";
+  return "sla-fill--ok";
+}
+function fmtDuration(ms) {
+  const mins = Math.round(Math.abs(ms) / 60000);
+  const label = mins < 60 ? `${mins}m` : mins < 1440 ? `${Math.round(mins / 60)}h` : `${Math.round(mins / 1440)}d`;
+  return ms < 0 ? `${label} over` : `${label} left`;
 }
 
-// --- Guaranteed Safe Equipment Tag Population ---
+/* ==========================================================================
+   AUDIT TRAIL — every status/priority/RCA change appends a timestamped entry
+   ========================================================================== */
+function AuditLog(ticket, message) {
+  if (!Array.isArray(ticket.auditTrail)) ticket.auditTrail = [];
+  ticket.auditTrail.push({ ts: Date.now(), message });
+  return ticket;
+}
+
+// --- Guaranteed Safe Equipment Tag Population (legacy #equipmentTag select,
+// kept for any view that still references it; harmless if absent) ---
 function populateEquipmentSelect() {
-  try {
-    const select = document.getElementById("equipmentTag");
-    if (!select) {
-      console.warn("Equipment dropdown element not found yet.");
-      return;
-    }
-    select.innerHTML = ASSET_REGISTRY.map(
-      (a) => `<option value="${a.tagId}">${a.tagId} — ${a.site} / ${a.area} / ${a.equipment}</option>`
-    ).join("");
-    console.log("Equipment dropdown populated successfully.");
-  } catch (e) {
-    console.error("Failed to populate equipment select:", e);
-  }
+  const select = document.getElementById("equipmentTag");
+  if (!select) return;
+  select.innerHTML = ASSET_REGISTRY.map(
+    (a) => `<option value="${a.tagId}">${a.tagId} — ${a.site} / ${a.area} / ${a.equipment}</option>`
+  ).join("");
 }
 
 // Run immediately and on DOM load
+function initIntakeView() {
+  populateEquipmentSelect();
+  initAssetCascade();
+  const impactSel = document.getElementById("impactSelect");
+  const urgencySel = document.getElementById("urgencySelect");
+  if (impactSel && urgencySel) {
+    impactSel.addEventListener("change", updatePriorityPreview);
+    urgencySel.addEventListener("change", updatePriorityPreview);
+    updatePriorityPreview();
+  }
+}
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
-    populateEquipmentSelect();
+    initIntakeView();
     renderDashboard();
   });
 } else {
-  populateEquipmentSelect();
+  initIntakeView();
 }
 
-// --- 3. Smart Fault Preset Selector Logic ---
-const faultPresetSelect = document.getElementById("faultPreset");
-const customContainer = document.getElementById("customDescriptionContainer");
-
-if (faultPresetSelect) {
-  faultPresetSelect.addEventListener("change", (e) => {
-    if (e.target.value === "OTHERS") {
-      if (customContainer) customContainer.style.display = "block";
-      const customInput = document.getElementById("customDescription");
-      if (customInput) customInput.value = "";
-    } else {
-      if (customContainer) customContainer.style.display = "none";
-    }
-  });
-}
-
-// --- 5. Save New Ticket ---
+// --- 5. Save New Ticket (structured V3 intake) ---
 const submitBtn = document.getElementById("submitTicket");
 if (submitBtn) {
   submitBtn.addEventListener("click", async () => {
     try {
-      const presetSelect = document.getElementById("faultPreset");
-      const presetVal = presetSelect ? presetSelect.value : "";
-      
-      if (!presetVal) {
-        toast("Please select a fault or issue.");
+      const siteSel = document.getElementById("assetSite");
+      const areaSel = document.getElementById("assetArea");
+      const equipSel = document.getElementById("assetEquipment");
+      const compSel = document.getElementById("assetComponent");
+      const description = document.getElementById("description")?.value.trim();
+
+      if (!siteSel.value || !areaSel.value || !equipSel.value || !compSel.value) {
+        toast("Please complete Site → Area → Equipment → Component before saving.");
         return;
       }
-
-      const description = presetVal === "OTHERS" 
-        ? document.getElementById("customDescription").value.trim() 
-        : presetVal;
-
       if (!description) {
-        toast("Please enter a custom description for 'Others'.");
+        toast("Please enter a description of the fault.");
         return;
       }
 
-      const eqTag = document.getElementById("equipmentTag")?.value || "UNKNOWN";
-      const sysVal = document.getElementById("system")?.value || "Siemens";
-      const priorityVal = parseInt(document.getElementById("priority")?.value, 10) || 3;
-      const asset = findAsset(eqTag);
+      const asset = resolveAsset(siteSel.value, areaSel.value, equipSel.value, compSel.value);
+      const impact = document.getElementById("impactSelect")?.value || "Medium";
+      const urgency = document.getElementById("urgencySelect")?.value || "Medium";
+      const priority = computePriorityFromMatrix(impact, urgency);
+      const faultCategory = document.getElementById("faultCategory")?.value || "Other";
+      const alarmCode = document.getElementById("alarmCode")?.value.trim() || null;
 
       let newTicket = {
-        ticketId: "TKT-" + Date.now() + "-" + Math.floor(Math.random()*1000),
+        ticketId: "TKT-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
         localRev: 1,
         serverRev: null,
-        severity: priorityVal,
-        priority: priorityFromSeverity(priorityVal),
-        // Asset hierarchy (falls back to the raw select values if the tag isn't in the registry)
+
+        // Priority engine
+        impact, urgency, priority,
+        severity: { P1: 1, P2: 2, P3: 3, P4: 4 }[priority], // kept for any legacy consumer expecting a numeric severity
+
+        // Asset hierarchy
         asset: asset
-          ? { site: asset.site, area: asset.area, system: asset.system, equipment: asset.equipment, tag: asset.tagId }
-          : { site: null, area: null, system: sysVal, equipment: null, tag: eqTag },
-        // Flat fields kept for backward compatibility with existing dashboard/table code and the Google Sheet
-        equipmentTagId: eqTag,
-        system: asset ? asset.system : sysVal,
-        summary: description.substring(0, 40) + "...",
-        description: description,
-        status: "Open",
-        assignedTo: APP_SETTINGS.engineerName,
+          ? { site: asset.site, area: asset.area, equipment: asset.equipment, component: asset.component, tag: asset.tagId, system: asset.system }
+          : { site: siteSel.value, area: areaSel.value, equipment: equipSel.value, component: compSel.value, tag: null, system: null },
+        // Flat fields kept for backward compatibility with the dashboard's legacy fallback and the Google Sheet
+        equipmentTagId: asset ? asset.tagId : null,
+        system: asset ? asset.system : null,
+
+        faultCategory, alarmCode, description,
+        summary: description.substring(0, 40) + (description.length > 40 ? "..." : ""),
+
+        status: "New",
+        assignedTo: null,
         createdBy: APP_SETTINGS.engineerName,
         createdAt: Date.now(),
         updatedAt: Date.now(),
-        syncStatus: "queued"
+        respondedAt: null,
+        syncStatus: "queued",
+        auditTrail: [],
       };
+      AuditLog(newTicket, `Incident created (${priority}, ${impact} impact / ${urgency} urgency)`);
 
       if (typeof OpsDB !== 'undefined' && OpsDB.put) {
-        await OpsDB.put("tickets", newTicket); 
+        await OpsDB.put("tickets", newTicket);
       }
-      
-      // Reset form fields safely
-      if (presetSelect) presetSelect.selectedIndex = 0;
-      const customInput = document.getElementById("customDescription");
-      if (customInput) customInput.value = "";
-      if (customContainer) customContainer.style.display = "none";
+
+      // Reset form
+      ["assetSite"].forEach((id) => { const el = document.getElementById(id); if (el) el.selectedIndex = 0; });
+      [areaSel, equipSel, compSel].forEach((sel) => { sel.innerHTML = ""; sel.disabled = true; });
+      document.getElementById("resolvedTagDisplay").textContent = "—";
+      document.getElementById("description").value = "";
+      document.getElementById("alarmCode").value = "";
 
       const confirmEl = document.getElementById("submitConfirm");
       if (confirmEl) {
@@ -260,7 +366,7 @@ if (submitBtn) {
   });
 }
 
-// --- 6. Resolve Ticket (RCA) ---
+// --- 6. Legacy Resolve tab (unchanged behavior; still works standalone) ---
 const btnResolve = document.getElementById("btnResolve");
 if (btnResolve) {
   btnResolve.addEventListener("click", async () => {
@@ -272,32 +378,17 @@ if (btnResolve) {
       const rootCause = document.getElementById("rcaCause")?.value.trim();
       const correctiveAction = document.getElementById("rcaAction")?.value.trim();
       const linkedNode = document.getElementById("rcaNodeSelect")?.value.trim();
-
       if (!rootCause || !correctiveAction) {
         toast("Root cause and corrective action are required before closing.");
         return;
       }
-
-      currentTicket.status = "Resolved";
-      currentTicket.rootCause = rootCause;
-      currentTicket.correctiveAction = correctiveAction;
-      currentTicket.linkedNode = linkedNode || null;
-      currentTicket.updatedAt = Date.now();
-      currentTicket.syncStatus = "queued"; // re-queue so the resolution syncs too
-
-      if (typeof OpsDB !== 'undefined' && OpsDB.put) {
-        await OpsDB.put("tickets", currentTicket);
-      }
-
+      await resolveTicket(currentTicket, rootCause, correctiveAction, linkedNode);
       currentTicket = null;
       ["rcaCause", "rcaAction", "rcaNodeSelect"].forEach((id) => {
         const el = document.getElementById(id);
         if (el) el.value = "";
       });
-
       toast("Ticket resolved and RCA recorded.");
-      renderDashboard();
-      requestSync();
     } catch (err) {
       console.error("Resolve error:", err);
       toast("Error resolving ticket.");
@@ -305,37 +396,52 @@ if (btnResolve) {
   });
 }
 
+// Shared resolution logic used by both the legacy Resolve tab and the Detail view.
+async function resolveTicket(ticket, rootCause, correctiveAction, linkedNode) {
+  ticket.status = "Resolved";
+  ticket.rootCause = rootCause;
+  ticket.correctiveAction = correctiveAction;
+  ticket.linkedNode = linkedNode || null;
+  ticket.updatedAt = Date.now();
+  ticket.syncStatus = "queued"; // re-queue so the resolution syncs too
+  AuditLog(ticket, "Resolved — RCA recorded");
+  if (typeof OpsDB !== 'undefined' && OpsDB.put) {
+    await OpsDB.put("tickets", ticket);
+  }
+  renderDashboard();
+  requestSync();
+}
+
 // --- 7. Queue Rendering ---
 async function renderQueue() {
   try {
     const list = document.getElementById("ticketList");
     if (!list) return;
-    
+
     let pending = [];
     if (typeof OpsDB !== 'undefined' && OpsDB.getAll) {
-      const queued = await OpsDB.getAll("tickets"); 
+      const queued = await OpsDB.getAll("tickets");
       pending = (queued || []).filter(t => t.syncStatus === 'queued');
     }
 
     list.innerHTML = pending.length
       ? pending
-          .map(
-            (t) => `<li><strong>${t.ticketId}</strong>: ${t.equipmentTagId} — ${t.summary}
+          .map((t) => `
+            <li>
+              <strong>${t.ticketId}</strong> ${priorityPill(t)} — ${equipmentLabel(t)} — ${t.summary}
               <span class="tag tag--queued">queued</span>
-              <button class="btn btn--secondary" data-resolve="${t.ticketId}" style="margin-top:6px;">Open for resolve</button></li>`
-          )
+              <button class="btn btn--secondary btn-sm" data-detail="${t.ticketId}" style="display:block;margin-top:8px;">View / Resolve</button>
+            </li>`)
           .join("")
       : "<li>No tickets waiting to sync.</li>";
 
-    list.querySelectorAll("[data-resolve]").forEach((btn) => {
+    list.querySelectorAll("[data-detail]").forEach((btn) => {
       btn.addEventListener("click", async () => {
-        const all = await OpsDB.getAll("tickets");
-        currentTicket = (all || []).find((t) => t.ticketId === btn.dataset.resolve) || null;
-        document.querySelectorAll(".tab").forEach((b) => b.classList.remove("tab--active"));
-        document.querySelectorAll(".view").forEach((v) => (v.hidden = true));
-        document.querySelector('[data-view="view-resolve"]')?.classList.add("tab--active");
-        const resolveView = document.getElementById("view-resolve");
-        if (resolveView) resolveView.hidden = false;
+        const ticket = await OpsDB.get("tickets", btn.dataset.detail);
+        if (!ticket) return;
+        currentTicket = ticket;
+        showView("view-detail");
+        renderTicketDetail(ticket);
       });
     });
   } catch (e) {
@@ -343,16 +449,128 @@ async function renderQueue() {
   }
 }
 
-// --- 8. Dashboard Rendering ---
+/* ==========================================================================
+   8. TICKET DETAIL VIEW
+   ========================================================================== */
+const STATUS_STEPS = ["New", "Assigned", "Investigating", "Resolved", "Closed"];
+
+document.getElementById("btnBackToTickets")?.addEventListener("click", () => {
+  showView("view-queue");
+  document.querySelector('[data-view="view-queue"]')?.classList.add("tab--active");
+  renderQueue();
+});
+
+function renderStatusStepper(ticket) {
+  const stepperEl = document.getElementById("statusStepper");
+  const actionsEl = document.getElementById("stepperActions");
+  if (!stepperEl) return;
+
+  const currentIndex = STATUS_STEPS.indexOf(ticket.status);
+  stepperEl.innerHTML = STATUS_STEPS.map((step, i) => {
+    const cls = i < currentIndex ? "done" : i === currentIndex ? "active" : "";
+    return `<div class="step ${cls}"><div class="step-dot"></div>${step}</div>`;
+  }).join("");
+
+  const actions = [];
+  if (ticket.status === "New") actions.push({ label: "Mark Assigned", next: "Assigned" });
+  if (ticket.status === "Assigned") actions.push({ label: "Start Investigating", next: "Investigating" });
+  if (ticket.status === "Resolved") actions.push({ label: "Close Ticket", next: "Closed" });
+
+  actionsEl.innerHTML = actions.map((a) => `<button class="btn btn--secondary btn-sm" data-advance="${a.next}">${a.label}</button>`).join("");
+  actionsEl.querySelectorAll("[data-advance]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const nextStatus = btn.dataset.advance;
+      if (nextStatus === "Assigned" && !ticket.respondedAt) ticket.respondedAt = Date.now();
+      ticket.status = nextStatus;
+      ticket.updatedAt = Date.now();
+      ticket.syncStatus = "queued";
+      AuditLog(ticket, `Status changed to ${nextStatus}`);
+      if (typeof OpsDB !== 'undefined' && OpsDB.put) await OpsDB.put("tickets", ticket);
+      renderTicketDetail(ticket);
+      renderDashboard();
+      requestSync();
+    });
+  });
+}
+
+function renderTicketDetail(ticket) {
+  const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+  setText("detailTicketId", ticket.ticketId);
+  setText("detailEquipmentTag", equipmentLabel(ticket));
+  const priority = getTicketPriority(ticket);
+  const badge = document.getElementById("detailPriorityBadge");
+  if (badge) {
+    badge.textContent = `${priority} · ${SLA_TARGETS[priority].label}`;
+    badge.className = `pill pill--${priority.toLowerCase()}`;
+  }
+
+  renderStatusStepper(ticket);
+
+  const resp = computeResponseSla(ticket);
+  const resFill = document.getElementById("responseSlaFill");
+  if (resFill) {
+    resFill.style.width = `${resp.pct}%`;
+    resFill.className = `sla-fill ${slaFillClass(resp.state)}`;
+  }
+  setText("responseSlaText", `${resp.state} · ${resp.done ? "responded" : fmtDuration(resp.remainingMs)}`);
+
+  const resolution = computeResolutionSla(ticket);
+  const resolveFill = document.getElementById("resolveSlaFill");
+  if (resolveFill) {
+    resolveFill.style.width = `${resolution.pct}%`;
+    resolveFill.className = `sla-fill ${slaFillClass(resolution.state)}`;
+  }
+  setText("resolveSlaText", `${resolution.state} · ${resolution.done ? "closed" : fmtDuration(resolution.remainingMs)}`);
+
+  const auditList = document.getElementById("auditTrailList");
+  if (auditList) {
+    const entries = Array.isArray(ticket.auditTrail) ? ticket.auditTrail : [];
+    auditList.innerHTML = entries.length
+      ? entries.slice().sort((a, b) => a.ts - b.ts).map((e) =>
+          `<li><span class="audit-time">${new Date(e.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>${e.message}</li>`
+        ).join("")
+      : `<li>No activity recorded yet.</li>`;
+  }
+
+  // Pre-fill / lock RCA fields if already resolved
+  const isClosedOut = ticket.status === "Resolved" || ticket.status === "Closed";
+  const cause = document.getElementById("detailRcaCause");
+  const action = document.getElementById("detailRcaAction");
+  const node = document.getElementById("detailRcaNode");
+  const resolveBtn = document.getElementById("detailBtnResolve");
+  if (cause) { cause.value = ticket.rootCause || ""; cause.disabled = isClosedOut; }
+  if (action) { action.value = ticket.correctiveAction || ""; action.disabled = isClosedOut; }
+  if (node) { node.value = ticket.linkedNode || ""; node.disabled = isClosedOut; }
+  if (resolveBtn) {
+    resolveBtn.textContent = isClosedOut ? "Resolved" : "Mark Resolved & Secure RCA";
+    resolveBtn.disabled = isClosedOut;
+  }
+}
+
+document.getElementById("detailBtnResolve")?.addEventListener("click", async () => {
+  if (!currentTicket) return;
+  const rootCause = document.getElementById("detailRcaCause")?.value.trim();
+  const correctiveAction = document.getElementById("detailRcaAction")?.value.trim();
+  const linkedNode = document.getElementById("detailRcaNode")?.value.trim();
+  if (!rootCause || !correctiveAction) {
+    toast("Root cause and corrective action are required before closing.");
+    return;
+  }
+  await resolveTicket(currentTicket, rootCause, correctiveAction, linkedNode);
+  renderTicketDetail(currentTicket);
+});
+
+// --- 9. Dashboard rendering helpers (shared with Detail view) ---
 function priorityPill(t) {
-  const p = getTicketPriority(t).toLowerCase(); // "p1".."p4"
-  const label = SLA_TARGETS[getTicketPriority(t)]?.label || "";
-  return `<span class="pill pill--${p}">${getTicketPriority(t)} ${label}</span>`;
+  const p = getTicketPriority(t);
+  const label = SLA_TARGETS[p]?.label || "";
+  return `<span class="pill pill--${p.toLowerCase()}">${p} ${label}</span>`;
 }
 function statusPill(status) {
-  const key = (status || "Open").toLowerCase().replace(/\s+/g, "");
-  const known = ["open", "assigned", "inprogress", "pending", "resolved", "closed"];
-  const cls = known.includes(key) ? key : "open";
+  const key = (status || "New").toLowerCase().replace(/\s+/g, "");
+  const known = ["new", "open", "assigned", "investigating", "inprogress", "pending", "resolved", "closed"];
+  const cls = known.includes(key) ? key : "new";
   return `<span class="pill pill--status-${cls}">${status}</span>`;
 }
 function ageOf(ts) {
@@ -366,12 +584,15 @@ function isSameDay(ts, ref) {
   const a = new Date(ts), b = new Date(ref);
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
-// Tolerates both the new ticket.asset hierarchy and legacy flat equipmentTagId/system.
+// Tolerates the V3 ticket.asset hierarchy, the V2 flat equipmentTagId/system shape,
+// and looks the tag up in the registry as a last resort.
 function equipmentLabel(t) {
-  if (t.asset && t.asset.tag) {
-    return `${t.asset.equipment || t.asset.tag} · ${t.asset.site || t.asset.system || ""}`;
+  if (t.asset && t.asset.tag) return `${t.asset.equipment || t.asset.tag} · ${t.asset.site || t.asset.system || ""}`;
+  if (t.equipmentTagId) {
+    const a = findAssetByTag(t.equipmentTagId);
+    return a ? `${a.equipment} · ${a.site}` : t.equipmentTagId;
   }
-  return t.equipmentTagId || "Unknown";
+  return "Unknown";
 }
 
 async function renderDashboard() {
@@ -383,7 +604,7 @@ async function renderDashboard() {
     const open = tickets.filter((t) => t.status !== "Resolved" && t.status !== "Closed");
     const critical = open.filter((t) => ["P1", "P2"].includes(getTicketPriority(t)));
     const slaRisk = open.filter((t) => {
-      const s = computeSlaStatus(t).state;
+      const s = computeResolutionSla(t).state;
       return s === "At Risk" || s === "Breached";
     });
     const resolvedToday = tickets.filter((t) => (t.status === "Resolved" || t.status === "Closed") && isSameDay(t.updatedAt, Date.now()));
@@ -394,7 +615,6 @@ async function renderDashboard() {
     setText("kpiSlaRisk", slaRisk.length);
     setText("kpiResolvedToday", resolvedToday.length);
 
-    // System health bars — groups by asset.system when present, else legacy .system
     const bySystem = {};
     open.forEach((t) => {
       const sys = (t.asset && t.asset.system) || t.system || "Unknown";
@@ -437,7 +657,7 @@ async function renderDashboard() {
   }
 }
 
-// --- 9. Google Sheets Cloud Sync Engine (Batch-safe GET sync) ---
+// --- 10. Google Sheets Cloud Sync Engine (Batch-safe GET sync) ---
 window.AgacSync = {
   async flushQueue() {
     if (typeof OpsDB === 'undefined') {
