@@ -61,10 +61,7 @@ function showView(viewId) {
 }
 
 /* ==========================================================================
-   ASSET HIERARCHY REGISTRY — Site -> Area -> Equipment -> Component -> Tag
-   Each entry currently maps to exactly one component; the cascade logic
-   below is generic, so adding multiple components per equipment later
-   (e.g. a second PLC on the same skid) needs no structural changes.
+   ENTERPRISE ASSET REGISTRY (Single Source of Truth)
    ========================================================================== */
 const ASSET_REGISTRY = [
   { tagId: "DCP-PLC-01", site: "District Cooling Plant A", area: "Chiller Plant Room", equipment: "CH-01", component: "PLC", system: "Siemens" },
@@ -97,9 +94,6 @@ const ASSET_REGISTRY = [
   { tagId: "MM-SWG-01", site: "Heavy Industrial Substation", area: "Switchgear Room", equipment: "CUBIC-SWG-01", component: "Switchgear", system: "SIVACON" },
 ];
 
-// Backward-compat alias for any old code path still referencing SEED_TAGS.
-const SEED_TAGS = ASSET_REGISTRY.map((a) => ({ tagId: a.tagId, system: a.system, location: `${a.site} (${a.area})` }));
-
 function uniq(arr) { return [...new Set(arr)]; }
 function getSites() { return uniq(ASSET_REGISTRY.map((a) => a.site)); }
 function getAreas(site) { return uniq(ASSET_REGISTRY.filter((a) => a.site === site).map((a) => a.area)); }
@@ -113,154 +107,21 @@ function findAssetByTag(tagId) {
 }
 
 /* ==========================================================================
-   ENTERPRISE ASSET HIERARCHY (V3 Data Model)
+   CASCADING DROPDOWN WIRING
    ========================================================================== */
-const ASSET_HIERARCHY = {
-  "District Cooling Plant A": {
-    "Chiller Plant": {
-      "Chiller 01": {
-        "PLC Controller": "DCP-PLC-01",
-        "VFD Drive": "DCP-VFD-01"
-      },
-      "Chiller 02": {
-        "PLC Controller": "DCP-PLC-02",
-        "VFD Drive": "DCP-VFD-02"
-      }
-    },
-    "Electrical Room": {
-      "Motor Control Center": {
-        "Switchgear": "DCP-MCC-01"
-      }
-    }
-  },
-  "Water Treatment Plant": {
-    "Pump Station": {
-      "Main Lift": {
-        "Modicon M580 PLC": "WTP-PLC-01"
-      }
-    }
-  },
-  "Desalination RO Plant": {
-    "Reverse Osmosis Train 1": {
-      "High Pressure Pump": {
-        "ABB Drive": "RO-VFD-01"
-      },
-      "Control Panel": {
-        "Siemens PLC": "RO-PLC-01"
-      }
-    }
-  }
-};
-
-/* ==========================================================================
-   CASCADING DROPDOWN LOGIC
-   ========================================================================== */
-const siteSelect = document.getElementById("siteSelect");
-const areaSelect = document.getElementById("areaSelect");
-const equipSelect = document.getElementById("equipmentSelect");
-const compSelect = document.getElementById("componentSelect");
-const tagDisplay = document.getElementById("resolvedTagDisplay");
-
-// Helper to reset a dropdown
-function resetSelect(selectEl, defaultText) {
-  selectEl.innerHTML = `<option value="" selected disabled>${defaultText}</option>`;
-  selectEl.disabled = true;
-}
-
-// 1. Init Sites
-function initHierarchy() {
-  if (!siteSelect) return;
-  const sites = Object.keys(ASSET_HIERARCHY);
-  siteSelect.innerHTML = `<option value="" selected disabled>-- Select site --</option>` + 
-    sites.map(s => `<option value="${s}">${s}</option>`).join("");
-}
-
-// 2. On Site Change -> Populate Area
-if (siteSelect) {
-  siteSelect.addEventListener("change", (e) => {
-    const siteData = ASSET_HIERARCHY[e.target.value] || {};
-    const areas = Object.keys(siteData);
-    
-    resetSelect(equipSelect, "-- Select equipment --");
-    resetSelect(compSelect, "-- Select component --");
-    tagDisplay.textContent = "—";
-
-    areaSelect.innerHTML = `<option value="" selected disabled>-- Select area --</option>` + 
-      areas.map(a => `<option value="${a}">${a}</option>`).join("");
-    areaSelect.disabled = false;
-  });
-}
-
-// 3. On Area Change -> Populate Equipment
-if (areaSelect) {
-  areaSelect.addEventListener("change", (e) => {
-    const siteData = ASSET_HIERARCHY[siteSelect.value] || {};
-    const areaData = siteData[e.target.value] || {};
-    const equipment = Object.keys(areaData);
-
-    resetSelect(compSelect, "-- Select component --");
-    tagDisplay.textContent = "—";
-
-    equipSelect.innerHTML = `<option value="" selected disabled>-- Select equipment --</option>` + 
-      equipment.map(eq => `<option value="${eq}">${eq}</option>`).join("");
-    equipSelect.disabled = false;
-  });
-}
-
-// 4. On Equipment Change -> Populate Component
-if (equipSelect) {
-  equipSelect.addEventListener("change", (e) => {
-    const siteData = ASSET_HIERARCHY[siteSelect.value] || {};
-    const areaData = siteData[areaSelect.value] || {};
-    const equipData = areaData[e.target.value] || {};
-    const components = Object.keys(equipData);
-
-    tagDisplay.textContent = "—";
-
-    compSelect.innerHTML = `<option value="" selected disabled>-- Select component --</option>` + 
-      components.map(comp => `<option value="${equipData[comp]}">${comp}</option>`).join("");
-    compSelect.disabled = false;
-  });
-}
-
-// Replace the old eqTag grabber with this:
-const eqTag = document.getElementById("resolvedTagDisplay")?.textContent;
-const finalTag = (eqTag && eqTag !== "—") ? eqTag : "UNKNOWN";
-
-let newTicket = {
-  // ... other fields
-  equipmentTagId: finalTag,
-  // ... other fields
-};
-
-// 5. On Component Change -> Display Final Tag
-if (compSelect) {
-  compSelect.addEventListener("change", (e) => {
-    // The option 'value' holds the final Tag ID (e.g., DCP-PLC-01)
-    tagDisplay.textContent = e.target.value; 
-  });
-}
-
-// Initialize on DOM Load
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initHierarchy);
-} else {
-  initHierarchy();
-}
-
-// --- Cascading dropdown wiring for the intake form ---
 function fillSelect(select, options, placeholder) {
-  select.innerHTML = (placeholder ? [`<option value="" disabled selected>${placeholder}</option>`] : [])
-    .concat(options.map((o) => `<option value="${o}">${o}</option>`)).join("");
+  select.innerHTML = (placeholder ? `<option value="" disabled selected>${placeholder}</option>` : "")
+    + options.map((o) => `<option value="${o}">${o}</option>`).join("");
 }
 
 function initAssetCascade() {
-  const siteSel = document.getElementById("assetSite");
-  const areaSel = document.getElementById("assetArea");
-  const equipSel = document.getElementById("assetEquipment");
-  const compSel = document.getElementById("assetComponent");
+  const siteSel = document.getElementById("siteSelect");
+  const areaSel = document.getElementById("areaSelect");
+  const equipSel = document.getElementById("equipmentSelect");
+  const compSel = document.getElementById("componentSelect");
   const tagDisplay = document.getElementById("resolvedTagDisplay");
-  if (!siteSel) return; // not on this view
+  
+  if (!siteSel) return;
 
   fillSelect(siteSel, getSites(), "-- Select site --");
 
@@ -292,7 +153,7 @@ function initAssetCascade() {
 }
 
 /* ==========================================================================
-   PRIORITY ENGINE — Impact x Urgency -> P1..P4 (standard reduced 3x3 grid)
+   PRIORITY ENGINE — Impact x Urgency -> P1..P4 
    ========================================================================== */
 const PRIORITY_MATRIX = {
   High:   { High: "P1", Medium: "P2", Low: "P3" },
@@ -309,13 +170,10 @@ const SLA_TARGETS = {
 function computePriorityFromMatrix(impact, urgency) {
   return (PRIORITY_MATRIX[impact] && PRIORITY_MATRIX[impact][urgency]) || "P3";
 }
-// Legacy fallback for tickets saved before V3 that only have a numeric "severity".
 function priorityFromSeverity(sev) {
   const map = { 1: "P1", 2: "P2", 3: "P3", 4: "P4" };
   return map[Number(sev)] || "P3";
 }
-// Tolerates all three ticket shapes: V3 (.priority set directly), V2 (impact/urgency
-// present but priority not cached), and V1 (severity only).
 function getTicketPriority(t) {
   if (t.priority) return t.priority;
   if (t.impact && t.urgency) return computePriorityFromMatrix(t.impact, t.urgency);
@@ -333,7 +191,7 @@ function updatePriorityPreview() {
 }
 
 /* ==========================================================================
-   SLA ENGINE — response & resolution progress against P1–P4 targets
+   SLA ENGINE — progress against P1–P4 targets
    ========================================================================== */
 function computeResponseSla(ticket) {
   const priority = getTicketPriority(ticket);
@@ -379,7 +237,7 @@ function fmtDuration(ms) {
 }
 
 /* ==========================================================================
-   AUDIT TRAIL — every status/priority/RCA change appends a timestamped entry
+   AUDIT TRAIL
    ========================================================================== */
 function AuditLog(ticket, message) {
   if (!Array.isArray(ticket.auditTrail)) ticket.auditTrail = [];
@@ -387,19 +245,8 @@ function AuditLog(ticket, message) {
   return ticket;
 }
 
-// --- Guaranteed Safe Equipment Tag Population (legacy #equipmentTag select,
-// kept for any view that still references it; harmless if absent) ---
-function populateEquipmentSelect() {
-  const select = document.getElementById("equipmentTag");
-  if (!select) return;
-  select.innerHTML = ASSET_REGISTRY.map(
-    (a) => `<option value="${a.tagId}">${a.tagId} — ${a.site} / ${a.area} / ${a.equipment}</option>`
-  ).join("");
-}
-
 // Run immediately and on DOM load
 function initIntakeView() {
-  populateEquipmentSelect();
   initAssetCascade();
   const impactSel = document.getElementById("impactSelect");
   const urgencySel = document.getElementById("urgencySelect");
@@ -423,10 +270,10 @@ const submitBtn = document.getElementById("submitTicket");
 if (submitBtn) {
   submitBtn.addEventListener("click", async () => {
     try {
-      const siteSel = document.getElementById("assetSite");
-      const areaSel = document.getElementById("assetArea");
-      const equipSel = document.getElementById("assetEquipment");
-      const compSel = document.getElementById("assetComponent");
+      const siteSel = document.getElementById("siteSelect");
+      const areaSel = document.getElementById("areaSelect");
+      const equipSel = document.getElementById("equipmentSelect");
+      const compSel = document.getElementById("componentSelect");
       const description = document.getElementById("description")?.value.trim();
 
       if (!siteSel.value || !areaSel.value || !equipSel.value || !compSel.value) {
@@ -449,22 +296,15 @@ if (submitBtn) {
         ticketId: "TKT-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
         localRev: 1,
         serverRev: null,
-
-        // Priority engine
         impact, urgency, priority,
-        severity: { P1: 1, P2: 2, P3: 3, P4: 4 }[priority], // kept for any legacy consumer expecting a numeric severity
-
-        // Asset hierarchy
+        severity: { P1: 1, P2: 2, P3: 3, P4: 4 }[priority],
         asset: asset
           ? { site: asset.site, area: asset.area, equipment: asset.equipment, component: asset.component, tag: asset.tagId, system: asset.system }
           : { site: siteSel.value, area: areaSel.value, equipment: equipSel.value, component: compSel.value, tag: null, system: null },
-        // Flat fields kept for backward compatibility with the dashboard's legacy fallback and the Google Sheet
         equipmentTagId: asset ? asset.tagId : null,
         system: asset ? asset.system : null,
-
         faultCategory, alarmCode, description,
         summary: description.substring(0, 40) + (description.length > 40 ? "..." : ""),
-
         status: "New",
         assignedTo: null,
         createdBy: APP_SETTINGS.engineerName,
@@ -474,15 +314,16 @@ if (submitBtn) {
         syncStatus: "queued",
         auditTrail: [],
       };
+      
       AuditLog(newTicket, `Incident created (${priority}, ${impact} impact / ${urgency} urgency)`);
 
       if (typeof OpsDB !== 'undefined' && OpsDB.put) {
         await OpsDB.put("tickets", newTicket);
       }
 
-      // Reset form
-      ["assetSite"].forEach((id) => { const el = document.getElementById(id); if (el) el.selectedIndex = 0; });
-      [areaSel, equipSel, compSel].forEach((sel) => { sel.innerHTML = ""; sel.disabled = true; });
+      // Reset form safely
+      if (siteSel) siteSel.selectedIndex = 0;
+      [areaSel, equipSel, compSel].forEach((sel) => { if (sel) { sel.innerHTML = ""; sel.disabled = true; }});
       document.getElementById("resolvedTagDisplay").textContent = "—";
       document.getElementById("description").value = "";
       document.getElementById("alarmCode").value = "";
@@ -502,7 +343,7 @@ if (submitBtn) {
   });
 }
 
-// --- 6. Legacy Resolve tab (unchanged behavior; still works standalone) ---
+// --- 6. Legacy Resolve tab ---
 const btnResolve = document.getElementById("btnResolve");
 if (btnResolve) {
   btnResolve.addEventListener("click", async () => {
@@ -532,14 +373,13 @@ if (btnResolve) {
   });
 }
 
-// Shared resolution logic used by both the legacy Resolve tab and the Detail view.
 async function resolveTicket(ticket, rootCause, correctiveAction, linkedNode) {
   ticket.status = "Resolved";
   ticket.rootCause = rootCause;
   ticket.correctiveAction = correctiveAction;
   ticket.linkedNode = linkedNode || null;
   ticket.updatedAt = Date.now();
-  ticket.syncStatus = "queued"; // re-queue so the resolution syncs too
+  ticket.syncStatus = "queued"; 
   AuditLog(ticket, "Resolved — RCA recorded");
   if (typeof OpsDB !== 'undefined' && OpsDB.put) {
     await OpsDB.put("tickets", ticket);
@@ -585,9 +425,7 @@ async function renderQueue() {
   }
 }
 
-/* ==========================================================================
-   8. TICKET DETAIL VIEW
-   ========================================================================== */
+// --- 8. TICKET DETAIL VIEW ---
 const STATUS_STEPS = ["New", "Assigned", "Investigating", "Resolved", "Closed"];
 
 document.getElementById("btnBackToTickets")?.addEventListener("click", () => {
@@ -669,7 +507,6 @@ function renderTicketDetail(ticket) {
       : `<li>No activity recorded yet.</li>`;
   }
 
-  // Pre-fill / lock RCA fields if already resolved
   const isClosedOut = ticket.status === "Resolved" || ticket.status === "Closed";
   const cause = document.getElementById("detailRcaCause");
   const action = document.getElementById("detailRcaAction");
@@ -697,7 +534,7 @@ document.getElementById("detailBtnResolve")?.addEventListener("click", async () 
   renderTicketDetail(currentTicket);
 });
 
-// --- 9. Dashboard rendering helpers (shared with Detail view) ---
+// --- 9. Dashboard rendering helpers ---
 function priorityPill(t) {
   const p = getTicketPriority(t);
   const label = SLA_TARGETS[p]?.label || "";
@@ -720,8 +557,6 @@ function isSameDay(ts, ref) {
   const a = new Date(ts), b = new Date(ref);
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
-// Tolerates the V3 ticket.asset hierarchy, the V2 flat equipmentTagId/system shape,
-// and looks the tag up in the registry as a last resort.
 function equipmentLabel(t) {
   if (t.asset && t.asset.tag) return `${t.asset.equipment || t.asset.tag} · ${t.asset.site || t.asset.system || ""}`;
   if (t.equipmentTagId) {
@@ -793,7 +628,7 @@ async function renderDashboard() {
   }
 }
 
-// --- 10. Google Sheets Cloud Sync Engine (Batch-safe GET sync) ---
+// --- 10. Google Sheets Cloud Sync Engine ---
 window.AgacSync = {
   async flushQueue() {
     if (typeof OpsDB === 'undefined') {
@@ -813,7 +648,6 @@ window.AgacSync = {
     alert(`Syncing ${queued.length} ticket(s) to your Google Sheet...`);
 
     try {
-      // REPLACE WITH YOUR ACTUAL GOOGLE APPS SCRIPT WEB APP URL ENDING IN /exec
       const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw-nlqGy2pMXqyrhJg3OZjS3D0oAfeaKbj8OwX0LA9_lHvWUWNVJjrNrGthfP-P5jsuJQ/exec";
 
       for (const ticket of queued) {
