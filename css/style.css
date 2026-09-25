@@ -53,7 +53,7 @@ h1 { font-size: 22px; margin: 4px 0 6px; }
 label { display: block; font-size: 13px; color: var(--text-dim); margin: 16px 0 6px; }
 
 /* Separated form controls to prevent nesting errors */
-textarea, input[type="file"] {
+textarea, input[type="file"], input[type="text"] {
   width: 100%;
   background: var(--panel);
   border: 1px solid var(--border);
@@ -78,6 +78,7 @@ select {
   cursor: pointer;
   margin-bottom: 12px;
 }
+select:disabled { opacity: 0.45; cursor: not-allowed; }
 
 select:focus {
   border-color: #3b82f6;
@@ -91,6 +92,11 @@ option {
 
 textarea { resize: vertical; }
 
+.asset-picker-hint { font-size: 12px; color: var(--text-dim); margin: -4px 0 14px; }
+.asset-picker-hint strong { color: var(--text); }
+
+.priority-preview { display: flex; align-items: center; gap: 10px; margin: 4px 0 14px; font-size: 13px; color: var(--text-dim); }
+
 .btn {
   margin-top: 20px;
   width: 100%;
@@ -103,6 +109,7 @@ textarea { resize: vertical; }
 }
 .btn--primary { background: var(--accent); color: #05131F; }
 .btn--secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
+.btn-sm { width: auto; margin-top: 0; padding: 8px 14px; font-size: 13px; }
 
 .confirm { color: var(--ok); font-size: 13px; margin-top: 10px; }
 
@@ -194,9 +201,11 @@ textarea { resize: vertical; }
 .pill--p3 { color: var(--accent); border-color: var(--accent); background: rgba(63, 169, 245, 0.1); }
 .pill--p4 { color: var(--text-dim); border-color: var(--border); background: rgba(139, 151, 175, 0.08); }
 
-/* Status pills: full lifecycle */
+/* Status pills: full lifecycle (New -> Assigned -> Investigating -> Resolved -> Closed) */
+.pill--status-new { color: var(--accent); border-color: var(--accent); background: rgba(63, 169, 245, 0.1); }
 .pill--status-open { color: var(--accent); border-color: var(--accent); background: rgba(63, 169, 245, 0.1); }
 .pill--status-assigned { color: var(--accent); border-color: var(--accent); background: rgba(63, 169, 245, 0.1); }
+.pill--status-investigating { color: var(--high); border-color: var(--high); background: rgba(245, 169, 63, 0.1); }
 .pill--status-inprogress { color: var(--high); border-color: var(--high); background: rgba(245, 169, 63, 0.1); }
 .pill--status-pending { color: var(--high); border-color: var(--high); background: rgba(245, 169, 63, 0.08); }
 .pill--status-resolved { color: var(--ok); border-color: var(--ok); background: rgba(63, 245, 147, 0.1); }
@@ -208,6 +217,42 @@ textarea { resize: vertical; }
 .sev-badge--2 { color: var(--high); border-color: var(--high); }
 .sev-badge--3 { color: var(--accent); border-color: var(--accent); }
 .sev-badge--4 { color: var(--text-dim); border-color: var(--border); }
+
+/* --- Ticket Detail view --- */
+.detail-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; gap: 12px; }
+.detail-ticket-id { font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+
+.status-stepper { display: flex; align-items: flex-start; margin-bottom: 4px; }
+.status-stepper .step { flex: 1; text-align: center; position: relative; font-size: 11px; color: var(--text-dim); }
+.status-stepper .step::before {
+  content: ""; position: absolute; top: 6px; left: -50%; width: 100%; height: 2px; background: var(--border); z-index: 0;
+}
+.status-stepper .step:first-child::before { display: none; }
+.status-stepper .step .step-dot {
+  width: 14px; height: 14px; border-radius: 50%; background: var(--border); margin: 0 auto 6px; position: relative; z-index: 1;
+  border: 2px solid var(--bg);
+}
+.status-stepper .step.done .step-dot { background: var(--ok); }
+.status-stepper .step.done::before { background: var(--ok); }
+.status-stepper .step.active .step-dot { background: var(--accent); box-shadow: 0 0 0 3px rgba(63, 169, 245, 0.25); }
+.status-stepper .step.active { color: var(--text); font-weight: 600; }
+
+.stepper-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+
+.sla-timer-row { display: grid; gap: 16px; }
+@media (min-width: 480px) {
+  .sla-timer-row { grid-template-columns: repeat(2, 1fr); }
+}
+.sla-timer-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; }
+.sla-track { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; height: 10px; overflow: hidden; }
+.sla-fill { height: 100%; border-radius: 6px; transition: width 0.3s ease; background: var(--accent); }
+.sla-fill--ok { background: var(--ok); }
+.sla-fill--warning { background: var(--high); }
+.sla-fill--critical { background: var(--critical); }
+
+.audit-trail { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; max-height: 240px; overflow-y: auto; }
+.audit-trail li { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
+.audit-trail .audit-time { color: var(--text-dim); font-size: 11px; margin-right: 8px; font-variant-numeric: tabular-nums; }
 
 .tabbar {
   position: fixed;
