@@ -53,44 +53,94 @@ document.querySelectorAll(".tab").forEach((btn) => {
 });
 
 /* ==========================================================================
-   100% REAL-WORLD AGAC PORTFOLIO REGISTRY (UAE / DUBAI INDUSTRIAL MODEL)
+   ASSET HIERARCHY REGISTRY — Site -> Area -> System -> Equipment -> Tag
+   Replaces the old flat SEED_TAGS list. tagId is kept as the select value so
+   it still matches whatever's already stored under equipmentTagId in OpsDB.
    ========================================================================== */
-const SEED_TAGS = [
-  // --- 1. DISTRICT COOLING PLANTS ---
-  { tagId: "DCP-PLC-01", system: "Siemens", location: "District Cooling Plant A (Chiller Controller)" },
-  { tagId: "DCP-VFD-01", system: "ABB", location: "District Cooling Plant A (Chilled Water Pump Drive)" },
-  { tagId: "DCP-SCADA-01", system: "GE", location: "District Cooling Plant B (iFIX SCADA Server)" },
-  { tagId: "DCP-MCC-01", system: "SIVACON", location: "District Cooling Plant B (Motor Control Center)" },
+const ASSET_REGISTRY = [
+  // --- DISTRICT COOLING PLANTS ---
+  { tagId: "DCP-PLC-01", site: "District Cooling Plant A", area: "Chiller Plant Room", system: "Siemens", equipment: "CH-01" },
+  { tagId: "DCP-VFD-01", site: "District Cooling Plant A", area: "Pump Room", system: "ABB", equipment: "CHWP-01" },
+  { tagId: "DCP-SCADA-01", site: "District Cooling Plant B", area: "Control Room", system: "GE", equipment: "SCADA-SRV-01" },
+  { tagId: "DCP-MCC-01", site: "District Cooling Plant B", area: "Electrical Room", system: "SIVACON", equipment: "MCC-01" },
 
-  // --- 2. WATER & WASTEWATER ---
-  { tagId: "WTP-PLC-01", system: "Schneider", location: "Water Treatment Plant (Modicon M580 Pump Station)" },
-  { tagId: "RO-PLC-01", system: "Siemens", location: "Desalination RO Plant (Reverse Osmosis Train 1)" },
-  { tagId: "RO-VFD-01", system: "ABB", location: "Desalination RO Plant (High Pressure Pump Drive)" },
-  { tagId: "TSE-RTU-01", system: "Rockwell", location: "Wastewater Lift Station (CompactLogix RTU)" },
+  // --- WATER & WASTEWATER ---
+  { tagId: "WTP-PLC-01", site: "Water Treatment Plant", area: "Pump Station", system: "Schneider", equipment: "M580-01" },
+  { tagId: "RO-PLC-01", site: "Desalination RO Plant", area: "RO Train 1", system: "Siemens", equipment: "RO-TRAIN-01" },
+  { tagId: "RO-VFD-01", site: "Desalination RO Plant", area: "High Pressure Pump Room", system: "ABB", equipment: "HPP-01" },
+  { tagId: "TSE-RTU-01", site: "Wastewater Lift Station", area: "Lift Station", system: "Rockwell", equipment: "RTU-01" },
 
-  // --- 3. OIL & GAS ---
-  { tagId: "OG-PLC-ESD", system: "Siemens", location: "Onshore Processing Facility (Failsafe ESD Controller)" },
-  { tagId: "OG-HMI-01", system: "Rockwell", location: "Wellhead Control Panel (PanelView HMI)" },
-  { tagId: "OG-SCADA-01", system: "Schneider", location: "Pipeline Monitoring (ClearSCADA)" },
-  { tagId: "OG-SWG-01", system: "SIVACON", location: "Refinery Substation (ArcSeis Low Voltage Switchgear)" },
+  // --- OIL & GAS ---
+  { tagId: "OG-PLC-ESD", site: "Onshore Processing Facility", area: "ESD System", system: "Siemens", equipment: "ESD-CTRL-01" },
+  { tagId: "OG-HMI-01", site: "Wellhead Control Panel", area: "Wellhead", system: "Rockwell", equipment: "HMI-01" },
+  { tagId: "OG-SCADA-01", site: "Pipeline Monitoring", area: "Control Center", system: "Schneider", equipment: "CLEARSCADA-01" },
+  { tagId: "OG-SWG-01", site: "Refinery Substation", area: "Switchgear Room", system: "SIVACON", equipment: "SWG-01" },
 
-  // --- 4. INFRASTRUCTURE & AUTOMATION ---
-  { tagId: "INF-DCS-01", system: "ABB", location: "Airport Facility Management (800xA DCS Node)" },
-  { tagId: "INF-MDB-01", system: "SIVACON", location: "Utility Substation (Main Distribution Board)" },
-  { tagId: "INF-MCC-01", system: "SIVACON", location: "Tunnel Ventilation System (CUBIC Modular Panel)" },
-  { tagId: "INF-BMS-01", system: "Schneider", location: "Commercial Tower (Building Management Controller)" },
+  // --- INFRASTRUCTURE & AUTOMATION ---
+  { tagId: "INF-DCS-01", site: "Airport Facility Management", area: "DCS Node Room", system: "ABB", equipment: "800xA-01" },
+  { tagId: "INF-MDB-01", site: "Utility Substation", area: "Main Distribution", system: "SIVACON", equipment: "MDB-01" },
+  { tagId: "INF-MCC-01", site: "Tunnel Ventilation System", area: "Ventilation Plant Room", system: "SIVACON", equipment: "CUBIC-MCC-01" },
+  { tagId: "INF-BMS-01", site: "Commercial Tower", area: "BMS Control Room", system: "Schneider", equipment: "BMS-CTRL-01" },
 
-  // --- 5. FOOD & BEVERAGE ---
-  { tagId: "FB-PLC-PACK", system: "Rockwell", location: "Beverage Bottling Line (Allen-Bradley ControlLogix)" },
-  { tagId: "FB-VFD-MIX", system: "ABB", location: "Food Processing Area (Mixer VFD)" },
-  { tagId: "FB-HMI-01", system: "Siemens", location: "Dairy Plant (Simatic Comfort Panel)" },
+  // --- FOOD & BEVERAGE ---
+  { tagId: "FB-PLC-PACK", site: "Beverage Bottling Line", area: "Packaging Line", system: "Rockwell", equipment: "CLX-PACK-01" },
+  { tagId: "FB-VFD-MIX", site: "Food Processing Area", area: "Mixing Line", system: "ABB", equipment: "MIXER-01" },
+  { tagId: "FB-HMI-01", site: "Dairy Plant", area: "Process Floor", system: "Siemens", equipment: "HMI-DAIRY-01" },
 
-  // --- 6. METALS & MINERALS ---
-  { tagId: "MM-PLC-CRN", system: "Siemens", location: "Steel Plant (Overhead Crane Controller)" },
-  { tagId: "MM-VFD-CNV", system: "ABB", location: "Mining Facility (Conveyor Belt Drive)" },
-  { tagId: "MM-SCADA-01", system: "GE", location: "Smelting Plant (Proficy HMI/SCADA)" },
-  { tagId: "MM-SWG-01", system: "SIVACON", location: "Heavy Industrial Substation (CUBIC Switchgear)" }
+  // --- METALS & MINERALS ---
+  { tagId: "MM-PLC-CRN", site: "Steel Plant", area: "Overhead Crane Bay", system: "Siemens", equipment: "CRANE-01" },
+  { tagId: "MM-VFD-CNV", site: "Mining Facility", area: "Conveyor Line", system: "ABB", equipment: "CONV-01" },
+  { tagId: "MM-SCADA-01", site: "Smelting Plant", area: "Control Room", system: "GE", equipment: "PROFICY-01" },
+  { tagId: "MM-SWG-01", site: "Heavy Industrial Substation", area: "Switchgear Room", system: "SIVACON", equipment: "CUBIC-SWG-01" },
 ];
+
+// Backward-compat alias: legacy tickets/code that reference SEED_TAGS keep working.
+const SEED_TAGS = ASSET_REGISTRY.map((a) => ({ tagId: a.tagId, system: a.system, location: `${a.site} (${a.area})` }));
+
+function findAsset(tagId) {
+  return ASSET_REGISTRY.find((a) => a.tagId === tagId) || null;
+}
+
+/* ==========================================================================
+   PRIORITY & SLA ENGINE
+   Priority (P1–P4) is urgency/response-time; severity is impact. The intake
+   form still only captures one field ("severity"), so priority is derived
+   from it for now — swap priorityFromSeverity() for a real form field later.
+   ========================================================================== */
+const SLA_TARGETS = {
+  P1: { label: "Critical", responseMins: 15, resolveMins: 4 * 60 },      // 4hr resolution
+  P2: { label: "High", responseMins: 30, resolveMins: 8 * 60 },
+  P3: { label: "Medium", responseMins: 120, resolveMins: 2 * 24 * 60 },  // 2 days
+  P4: { label: "Low", responseMins: 480, resolveMins: 5 * 24 * 60 },
+};
+
+function priorityFromSeverity(sev) {
+  const map = { 1: "P1", 2: "P2", 3: "P3", 4: "P4" };
+  return map[Number(sev)] || "P3";
+}
+
+// Tolerates legacy tickets (no .priority, only .severity) and new ones alike.
+function getTicketPriority(t) {
+  return t.priority || priorityFromSeverity(t.severity);
+}
+
+// Returns { state: "Within SLA" | "At Risk" | "Breached", remainingMs, deadline }
+function computeSlaStatus(ticket) {
+  const priority = getTicketPriority(ticket);
+  const targets = SLA_TARGETS[priority] || SLA_TARGETS.P3;
+  const deadline = ticket.createdAt + targets.resolveMins * 60000;
+  const isClosed = ticket.status === "Resolved" || ticket.status === "Closed";
+  const referenceTime = isClosed ? (ticket.updatedAt || Date.now()) : Date.now();
+  const remainingMs = deadline - referenceTime;
+
+  if (isClosed) {
+    return { state: remainingMs >= 0 ? "Within SLA" : "Breached", remainingMs, deadline };
+  }
+  if (remainingMs <= 0) return { state: "Breached", remainingMs, deadline };
+  const atRiskThresholdMs = targets.resolveMins * 60000 * 0.2; // last 20% of the window
+  if (remainingMs <= atRiskThresholdMs) return { state: "At Risk", remainingMs, deadline };
+  return { state: "Within SLA", remainingMs, deadline };
+}
 
 // --- Guaranteed Safe Equipment Tag Population ---
 function populateEquipmentSelect() {
@@ -100,8 +150,8 @@ function populateEquipmentSelect() {
       console.warn("Equipment dropdown element not found yet.");
       return;
     }
-    select.innerHTML = SEED_TAGS.map(
-      (t) => `<option value="${t.tagId}">${t.tagId} — ${t.location}</option>`
+    select.innerHTML = ASSET_REGISTRY.map(
+      (a) => `<option value="${a.tagId}">${a.tagId} — ${a.site} / ${a.area} / ${a.equipment}</option>`
     ).join("");
     console.log("Equipment dropdown populated successfully.");
   } catch (e) {
@@ -160,14 +210,21 @@ if (submitBtn) {
       const eqTag = document.getElementById("equipmentTag")?.value || "UNKNOWN";
       const sysVal = document.getElementById("system")?.value || "Siemens";
       const priorityVal = parseInt(document.getElementById("priority")?.value, 10) || 3;
+      const asset = findAsset(eqTag);
 
       let newTicket = {
         ticketId: "TKT-" + Date.now() + "-" + Math.floor(Math.random()*1000),
         localRev: 1,
         serverRev: null,
         severity: priorityVal,
+        priority: priorityFromSeverity(priorityVal),
+        // Asset hierarchy (falls back to the raw select values if the tag isn't in the registry)
+        asset: asset
+          ? { site: asset.site, area: asset.area, system: asset.system, equipment: asset.equipment, tag: asset.tagId }
+          : { site: null, area: null, system: sysVal, equipment: null, tag: eqTag },
+        // Flat fields kept for backward compatibility with existing dashboard/table code and the Google Sheet
         equipmentTagId: eqTag,
-        system: sysVal,
+        system: asset ? asset.system : sysVal,
         summary: description.substring(0, 40) + "...",
         description: description,
         status: "Open",
@@ -204,10 +261,6 @@ if (submitBtn) {
 }
 
 // --- 6. Resolve Ticket (RCA) ---
-// NOTE: the pasted file defined #view-resolve's fields (rcaCause, rcaAction, rcaNodeSelect,
-// btnResolve) but had no listener wired to btnResolve, so resolutions never reached OpsDB
-// and tickets never left "Open". Added here so the dashboard's "Resolved Today" KPI has
-// real data. It resolves whichever ticket was last opened from the queue (see renderQueue).
 const btnResolve = document.getElementById("btnResolve");
 if (btnResolve) {
   btnResolve.addEventListener("click", async () => {
@@ -291,9 +344,16 @@ async function renderQueue() {
 }
 
 // --- 8. Dashboard Rendering ---
-function severityBadge(sev) {
-  const s = Number(sev) || 3;
-  return `<span class="sev-badge sev-badge--${s}">Sev ${s}</span>`;
+function priorityPill(t) {
+  const p = getTicketPriority(t).toLowerCase(); // "p1".."p4"
+  const label = SLA_TARGETS[getTicketPriority(t)]?.label || "";
+  return `<span class="pill pill--${p}">${getTicketPriority(t)} ${label}</span>`;
+}
+function statusPill(status) {
+  const key = (status || "Open").toLowerCase().replace(/\s+/g, "");
+  const known = ["open", "assigned", "inprogress", "pending", "resolved", "closed"];
+  const cls = known.includes(key) ? key : "open";
+  return `<span class="pill pill--status-${cls}">${status}</span>`;
 }
 function ageOf(ts) {
   const mins = Math.round((Date.now() - ts) / 60000);
@@ -306,6 +366,13 @@ function isSameDay(ts, ref) {
   const a = new Date(ts), b = new Date(ref);
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
+// Tolerates both the new ticket.asset hierarchy and legacy flat equipmentTagId/system.
+function equipmentLabel(t) {
+  if (t.asset && t.asset.tag) {
+    return `${t.asset.equipment || t.asset.tag} · ${t.asset.site || t.asset.system || ""}`;
+  }
+  return t.equipmentTagId || "Unknown";
+}
 
 async function renderDashboard() {
   try {
@@ -313,12 +380,13 @@ async function renderDashboard() {
     const tickets = (await OpsDB.getAll("tickets")) || [];
     tickets.sort((a, b) => b.createdAt - a.createdAt);
 
-    const open = tickets.filter((t) => t.status !== "Resolved");
-    const critical = open.filter((t) => Number(t.severity) <= 2);
-    // "SLA at risk" placeholder: open Sev 1–2 tickets older than 30 minutes.
-    // Swap for real SLA deadline fields once the SLA engine is wired into the ticket schema.
-    const slaRisk = critical.filter((t) => Date.now() - t.createdAt > 30 * 60000);
-    const resolvedToday = tickets.filter((t) => t.status === "Resolved" && isSameDay(t.updatedAt, Date.now()));
+    const open = tickets.filter((t) => t.status !== "Resolved" && t.status !== "Closed");
+    const critical = open.filter((t) => ["P1", "P2"].includes(getTicketPriority(t)));
+    const slaRisk = open.filter((t) => {
+      const s = computeSlaStatus(t).state;
+      return s === "At Risk" || s === "Breached";
+    });
+    const resolvedToday = tickets.filter((t) => (t.status === "Resolved" || t.status === "Closed") && isSameDay(t.updatedAt, Date.now()));
 
     const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
     setText("kpiOpen", open.length);
@@ -326,12 +394,16 @@ async function renderDashboard() {
     setText("kpiSlaRisk", slaRisk.length);
     setText("kpiResolvedToday", resolvedToday.length);
 
+    // System health bars — groups by asset.system when present, else legacy .system
     const bySystem = {};
-    open.forEach((t) => { bySystem[t.system] = (bySystem[t.system] || 0) + 1; });
+    open.forEach((t) => {
+      const sys = (t.asset && t.asset.system) || t.system || "Unknown";
+      bySystem[sys] = (bySystem[sys] || 0) + 1;
+    });
     const maxCount = Math.max(1, ...Object.values(bySystem));
     const breakdown = document.getElementById("systemBreakdown");
     if (breakdown) {
-      const entries = Object.entries(bySystem);
+      const entries = Object.entries(bySystem).sort((a, b) => b[1] - a[1]);
       breakdown.innerHTML = entries.length
         ? entries.map(([sys, count]) => `
             <div class="breakdown-row">
@@ -344,14 +416,14 @@ async function renderDashboard() {
 
     const tbody = document.getElementById("incidentsTableBody");
     if (tbody) {
-      tbody.innerHTML = tickets.slice(0, 10).map((t) => `
+      tbody.innerHTML = tickets.slice(0, 15).map((t) => `
         <tr>
-          <td>${t.ticketId}</td>
-          <td>${t.equipmentTagId}</td>
-          <td>${(t.summary || "").slice(0, 40)}</td>
-          <td>${severityBadge(t.severity)}</td>
-          <td>${ageOf(t.createdAt)}</td>
-          <td>${t.status}</td>
+          <td class="col-ticket">${t.ticketId}</td>
+          <td class="col-equipment truncate" title="${equipmentLabel(t)}">${equipmentLabel(t)}</td>
+          <td class="truncate" title="${(t.summary || "").replace(/"/g, '&quot;')}">${(t.summary || "").slice(0, 60)}</td>
+          <td>${priorityPill(t)}</td>
+          <td class="col-age">${ageOf(t.createdAt)}</td>
+          <td>${statusPill(t.status)}</td>
         </tr>`).join("") || `<tr><td colspan="6">No tickets yet.</td></tr>`;
     }
 
