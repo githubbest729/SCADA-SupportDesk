@@ -1,0 +1,23 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  build-and-deploy:
+    # UPDATE: Changed from ubuntu-20.04 to ubuntu-latest to fix runner deprecation warning
+    runs-on: ubuntu-latest
+    
+    steps:
+      # UPDATE: Changed to checkout@v4 to fix Node.js 16/20 deprecation warning
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # UPDATE: Changed to setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Or your specific node version
+
+      # ... (the rest of your build/deploy steps remain the same)
