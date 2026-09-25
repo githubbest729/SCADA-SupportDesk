@@ -112,6 +112,142 @@ function findAssetByTag(tagId) {
   return ASSET_REGISTRY.find((a) => a.tagId === tagId) || null;
 }
 
+/* ==========================================================================
+   ENTERPRISE ASSET HIERARCHY (V3 Data Model)
+   ========================================================================== */
+const ASSET_HIERARCHY = {
+  "District Cooling Plant A": {
+    "Chiller Plant": {
+      "Chiller 01": {
+        "PLC Controller": "DCP-PLC-01",
+        "VFD Drive": "DCP-VFD-01"
+      },
+      "Chiller 02": {
+        "PLC Controller": "DCP-PLC-02",
+        "VFD Drive": "DCP-VFD-02"
+      }
+    },
+    "Electrical Room": {
+      "Motor Control Center": {
+        "Switchgear": "DCP-MCC-01"
+      }
+    }
+  },
+  "Water Treatment Plant": {
+    "Pump Station": {
+      "Main Lift": {
+        "Modicon M580 PLC": "WTP-PLC-01"
+      }
+    }
+  },
+  "Desalination RO Plant": {
+    "Reverse Osmosis Train 1": {
+      "High Pressure Pump": {
+        "ABB Drive": "RO-VFD-01"
+      },
+      "Control Panel": {
+        "Siemens PLC": "RO-PLC-01"
+      }
+    }
+  }
+};
+
+/* ==========================================================================
+   CASCADING DROPDOWN LOGIC
+   ========================================================================== */
+const siteSelect = document.getElementById("siteSelect");
+const areaSelect = document.getElementById("areaSelect");
+const equipSelect = document.getElementById("equipmentSelect");
+const compSelect = document.getElementById("componentSelect");
+const tagDisplay = document.getElementById("resolvedTagDisplay");
+
+// Helper to reset a dropdown
+function resetSelect(selectEl, defaultText) {
+  selectEl.innerHTML = `<option value="" selected disabled>${defaultText}</option>`;
+  selectEl.disabled = true;
+}
+
+// 1. Init Sites
+function initHierarchy() {
+  if (!siteSelect) return;
+  const sites = Object.keys(ASSET_HIERARCHY);
+  siteSelect.innerHTML = `<option value="" selected disabled>-- Select site --</option>` + 
+    sites.map(s => `<option value="${s}">${s}</option>`).join("");
+}
+
+// 2. On Site Change -> Populate Area
+if (siteSelect) {
+  siteSelect.addEventListener("change", (e) => {
+    const siteData = ASSET_HIERARCHY[e.target.value] || {};
+    const areas = Object.keys(siteData);
+    
+    resetSelect(equipSelect, "-- Select equipment --");
+    resetSelect(compSelect, "-- Select component --");
+    tagDisplay.textContent = "—";
+
+    areaSelect.innerHTML = `<option value="" selected disabled>-- Select area --</option>` + 
+      areas.map(a => `<option value="${a}">${a}</option>`).join("");
+    areaSelect.disabled = false;
+  });
+}
+
+// 3. On Area Change -> Populate Equipment
+if (areaSelect) {
+  areaSelect.addEventListener("change", (e) => {
+    const siteData = ASSET_HIERARCHY[siteSelect.value] || {};
+    const areaData = siteData[e.target.value] || {};
+    const equipment = Object.keys(areaData);
+
+    resetSelect(compSelect, "-- Select component --");
+    tagDisplay.textContent = "—";
+
+    equipSelect.innerHTML = `<option value="" selected disabled>-- Select equipment --</option>` + 
+      equipment.map(eq => `<option value="${eq}">${eq}</option>`).join("");
+    equipSelect.disabled = false;
+  });
+}
+
+// 4. On Equipment Change -> Populate Component
+if (equipSelect) {
+  equipSelect.addEventListener("change", (e) => {
+    const siteData = ASSET_HIERARCHY[siteSelect.value] || {};
+    const areaData = siteData[areaSelect.value] || {};
+    const equipData = areaData[e.target.value] || {};
+    const components = Object.keys(equipData);
+
+    tagDisplay.textContent = "—";
+
+    compSelect.innerHTML = `<option value="" selected disabled>-- Select component --</option>` + 
+      components.map(comp => `<option value="${equipData[comp]}">${comp}</option>`).join("");
+    compSelect.disabled = false;
+  });
+}
+
+// Replace the old eqTag grabber with this:
+const eqTag = document.getElementById("resolvedTagDisplay")?.textContent;
+const finalTag = (eqTag && eqTag !== "—") ? eqTag : "UNKNOWN";
+
+let newTicket = {
+  // ... other fields
+  equipmentTagId: finalTag,
+  // ... other fields
+};
+
+// 5. On Component Change -> Display Final Tag
+if (compSelect) {
+  compSelect.addEventListener("change", (e) => {
+    // The option 'value' holds the final Tag ID (e.g., DCP-PLC-01)
+    tagDisplay.textContent = e.target.value; 
+  });
+}
+
+// Initialize on DOM Load
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initHierarchy);
+} else {
+  initHierarchy();
+}
+
 // --- Cascading dropdown wiring for the intake form ---
 function fillSelect(select, options, placeholder) {
   select.innerHTML = (placeholder ? [`<option value="" disabled selected>${placeholder}</option>`] : [])
