@@ -7,7 +7,6 @@
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#0E1420" />
   <link rel="stylesheet" href="css/style.css" />
-  <!-- Stops the favicon 404 error until you upload a real icon -->
   <link rel="icon" href="data:;base64,iVBORw0KGgo=">
 </head>
 <body>  
@@ -99,43 +98,9 @@
       </p>
     </fieldset>
 
+    <!-- Fault context with strict Enterprise Dropdowns -->
     <h2 style="font-size:14px;color:var(--text-dim);margin:18px 0 4px;">Fault context</h2>
     
-    <!-- RESTORED: AGAC Smart Fault Preset Dropdown -->
-    <label for="faultPreset">What's happening? (Select common issue or type custom)</label>
-    <select id="faultPreset" name="faultPreset" style="margin-bottom: 12px;">
-      <option value="" selected disabled>-- Select common plant fault or issue --</option>
-      <optgroup label="District Cooling / HVAC">
-        <option value="PLC communication timeout / heartbeat failure">PLC communication timeout / heartbeat failure</option>
-        <option value="Chilled water pump VFD trip / overload">Chilled water pump VFD trip / overload</option>
-        <option value="SCADA Historian logging gap / timestamp drift">SCADA Historian logging gap / timestamp drift</option>
-      </optgroup>
-      <optgroup label="Water & Wastewater">
-        <option value="Lift station high level alarm">Lift station high level alarm</option>
-        <option value="RO high pressure pump vibration fault">RO high pressure pump vibration fault</option>
-        <option value="Dosing pump chemical flow error">Dosing pump chemical flow error</option>
-      </optgroup>
-      <optgroup label="Oil & Gas">
-        <option value="ESD system partial stroke test failure">ESD system partial stroke test failure</option>
-        <option value="Pipeline SCADA telemetry loss">Pipeline SCADA telemetry loss</option>
-        <option value="Wellhead control panel pressure drop">Wellhead control panel pressure drop</option>
-      </optgroup>
-      <optgroup label="Infrastructure & Automation">
-        <option value="Main distribution board (MDB) incomer breaker trip">Main distribution board (MDB) incomer breaker trip</option>
-        <option value="BMS controller network offline">BMS controller network offline</option>
-        <option value="UPS battery fault / low voltage alarm">UPS battery fault / low voltage alarm</option>
-      </optgroup>
-      <optgroup label="Food & Beverage">
-        <option value="Packaging line PLC sequence halt">Packaging line PLC sequence halt</option>
-        <option value="Mixer VFD overcurrent fault">Mixer VFD overcurrent fault</option>
-      </optgroup>
-      <optgroup label="Metals & Minerals">
-        <option value="Overhead crane PLC interlock triggered">Overhead crane PLC interlock triggered</option>
-        <option value="Conveyor drive thermal overload">Conveyor drive thermal overload</option>
-      </optgroup>
-      <option value="OTHERS">Custom / Other issue...</option>
-    </select>
-
     <label for="faultCategory">Fault category</label>
     <select id="faultCategory" name="faultCategory">
       <option value="Communication / Network">Communication / Network</option>
@@ -148,10 +113,62 @@
     </select>
 
     <label for="alarmCode">Alarm code (optional)</label>
-    <input type="text" id="alarmCode" name="alarmCode" placeholder="e.g. E-204" />
+    <select id="alarmCode" name="alarmCode">
+      <option value="" selected disabled>-- Select SCADA / PLC alarm code --</option>
+      <optgroup label="Siemens / PLC Standard">
+        <option value="0x80A1 - CPU Hardware Fault">0x80A1 - CPU Hardware Fault</option>
+        <option value="0x80C4 - PROFINET Comm Error">0x80C4 - PROFINET Comm Error</option>
+        <option value="0x80D2 - I/O Module Diagnostic">0x80D2 - I/O Module Diagnostic</option>
+      </optgroup>
+      <optgroup label="Electrical / Power">
+        <option value="E-101 - Incomer Breaker Trip">E-101 - Incomer Breaker Trip</option>
+        <option value="E-102 - UPS Low Voltage">E-102 - UPS Low Voltage</option>
+        <option value="E-103 - VFD Overcurrent">E-103 - VFD Overcurrent</option>
+      </optgroup>
+      <optgroup label="Process / Instrumentation">
+        <option value="P-201 - High Level Alarm">P-201 - High Level Alarm</option>
+        <option value="P-202 - Pressure Drop Alert">P-202 - Pressure Drop Alert</option>
+        <option value="P-203 - Flow Rate Deviation">P-203 - Flow Rate Deviation</option>
+      </optgroup>
+      <optgroup label="Safety / ESD">
+        <option value="S-301 - ESD Pushbutton Triggered">S-301 - ESD Pushbutton Triggered</option>
+        <option value="S-302 - Gas Detection High">S-302 - Gas Detection High</option>
+      </optgroup>
+      <option value="N/A">N/A - No Code Displayed</option>
+    </select>
 
-    <label for="description">Description</label>
-    <textarea id="description" name="description" rows="4" placeholder="Describe the fault, symptoms, and any readings observed..."></textarea>
+    <label for="description">Standardized fault description</label>
+    <select id="description" name="description" style="margin-bottom: 12px;">
+      <option value="" selected disabled>-- Select enterprise fault description --</option>
+      <optgroup label="District Cooling / HVAC">
+        <option value="Chiller PLC communication timeout / heartbeat failure.">Chiller PLC communication timeout / heartbeat failure.</option>
+        <option value="Chilled water pump VFD tripped on thermal overload.">Chilled water pump VFD tripped on thermal overload.</option>
+        <option value="SCADA Historian logging gap / timestamp drift detected.">SCADA Historian logging gap / timestamp drift detected.</option>
+      </optgroup>
+      <optgroup label="Water & Wastewater">
+        <option value="Lift station reached critical high level. Pumps not auto-starting.">Lift station reached critical high level. Pumps not auto-starting.</option>
+        <option value="RO high pressure pump vibration fault detected on sensor.">RO high pressure pump vibration fault detected on sensor.</option>
+        <option value="Dosing pump chemical flow error / airlock suspected.">Dosing pump chemical flow error / airlock suspected.</option>
+      </optgroup>
+      <optgroup label="Oil & Gas">
+        <option value="ESD system partial stroke test failed to complete within parameters.">ESD system partial stroke test failed to complete within parameters.</option>
+        <option value="Pipeline SCADA telemetry loss at remote block valve.">Pipeline SCADA telemetry loss at remote block valve.</option>
+        <option value="Wellhead control panel experienced sudden pressure drop.">Wellhead control panel experienced sudden pressure drop.</option>
+      </optgroup>
+      <optgroup label="Infrastructure & Automation">
+        <option value="Main distribution board (MDB) incomer breaker tripped on earth fault.">Main distribution board (MDB) incomer breaker tripped on earth fault.</option>
+        <option value="BMS controller network offline. HVAC loops in manual override.">BMS controller network offline. HVAC loops in manual override.</option>
+        <option value="UPS battery fault / low voltage alarm active. Backup compromised.">UPS battery fault / low voltage alarm active. Backup compromised.</option>
+      </optgroup>
+      <optgroup label="Food & Beverage">
+        <option value="Packaging line PLC sequence halted unexpectedly. Safety interlock OK.">Packaging line PLC sequence halted unexpectedly. Safety interlock OK.</option>
+        <option value="Mixer VFD overcurrent fault during heavy load batch.">Mixer VFD overcurrent fault during heavy load batch.</option>
+      </optgroup>
+      <optgroup label="Metals & Minerals">
+        <option value="Overhead crane PLC interlock triggered. Motion disabled.">Overhead crane PLC interlock triggered. Motion disabled.</option>
+        <option value="Conveyor drive thermal overload. Motor casing hot.">Conveyor drive thermal overload. Motor casing hot.</option>
+      </optgroup>
+    </select>
 
     <h2 style="font-size:14px;color:var(--text-dim);margin:18px 0 4px;">Priority engine</h2>
     <label for="impactSelect">Impact</label>
@@ -192,7 +209,7 @@
     <button id="syncNow" class="btn btn--secondary">Sync now</button>  
   </main>
 
-  <!-- TICKET DETAIL VIEW — opened by clicking a ticket in the queue, not a nav tab -->
+  <!-- TICKET DETAIL VIEW -->
   <main id="view-detail" class="view" hidden>
     <button id="btnBackToTickets" class="btn btn--secondary" style="margin-bottom:12px;max-width:180px;">← Back to Tickets</button>
 
@@ -241,7 +258,7 @@
     </section>
   </main>
 
-  <!-- RCA RESOLUTION VIEW (legacy quick-resolve path, unchanged, still reachable from the nav) -->
+  <!-- RCA RESOLUTION VIEW -->
   <main id="view-resolve" class="view" hidden>
     <h1>Resolve Ticket</h1>
     <p class="lede">Root Cause Analysis (RCA) is mandatory before closing an active incident.</p>
